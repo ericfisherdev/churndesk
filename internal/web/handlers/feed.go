@@ -57,7 +57,7 @@ func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {
 	if len(items) > prevCount {
 		w.Header().Set("X-Has-New-Items", "true")
 	}
-	templates.FeedFragment(items, len(items) > prevCount).Render(r.Context(), w) //nolint:errcheck
+	templates.FeedFragment(items, h.defaultColumns).Render(r.Context(), w) //nolint:errcheck
 }
 
 // Dismiss marks an item as dismissed and returns the updated fragment.
@@ -72,7 +72,7 @@ func (h *FeedHandler) Dismiss(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
 	}
-	templates.FeedFragment(items, false).Render(r.Context(), w) //nolint:errcheck
+	templates.FeedFragment(items, h.defaultColumns).Render(r.Context(), w) //nolint:errcheck
 }
 
 // Seen marks an item as seen. Returns 204 No Content on success.
@@ -96,5 +96,5 @@ func (h *FeedHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
 	}
-	templates.FeedFragment(items, false).Render(r.Context(), w) //nolint:errcheck
+	templates.FeedFragment(items, h.defaultColumns).Render(r.Context(), w) //nolint:errcheck
 }

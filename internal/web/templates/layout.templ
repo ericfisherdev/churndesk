@@ -1,3 +1,4 @@
+// internal/web/templates/layout.templ
 package templates
 
 templ Layout(title string) {
@@ -8,12 +9,42 @@ templ Layout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title } — Churndesk</title>
 			<link rel="stylesheet" href="/static/style.css"/>
-			<script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
 			<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+			<script src="/static/app.js" defer></script>
 		</head>
-		<body x-data="churndesk()" class="bg-gray-950 text-gray-100 min-h-screen">
+		<body x-data="churndesk()" x-init="init()">
+			<header class="header">
+				<a href="/" class="header-logo">Churndesk</a>
+				<div class="header-spacer"></div>
+				<div class="header-actions">
+					<button
+						class="btn"
+						hx-post="/sync"
+						hx-swap="none"
+						title="Sync now">
+						↻
+					</button>
+					<a href="/settings" class="btn">Settings</a>
+				</div>
+			</header>
+			<!-- Toast container -->
+			<div class="toast-container" aria-live="polite">
+				<template x-for="toast in toasts" :key="toast.id">
+					<div
+						class="toast"
+						:class="{
+							'toast-new-items': toast.type === 'new-items',
+							'toast-error':     toast.type === 'error',
+							'toast-success':   toast.type === 'success'
+						}"
+						:data-toast="toast.id"
+						x-text="toast.message">
+					</div>
+				</template>
+			</div>
 			{ children... }
-			<script src="/static/app.js"></script>
 		</body>
 	</html>
 }
