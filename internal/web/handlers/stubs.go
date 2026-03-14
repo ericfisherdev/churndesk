@@ -5,15 +5,6 @@ package handlers
 
 import "net/http"
 
-// FeedHandler handles the feed page and actions. Real implementation in feed.go.
-type FeedHandler struct{}
-
-func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request)     {}
-func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {}
-func (h *FeedHandler) Dismiss(w http.ResponseWriter, r *http.Request)  {}
-func (h *FeedHandler) Seen(w http.ResponseWriter, r *http.Request)     {}
-func (h *FeedHandler) Sync(w http.ResponseWriter, r *http.Request)     {}
-
 // PRHandler handles PR detail page and actions. Real implementation in pr.go.
 type PRHandler struct{}
 

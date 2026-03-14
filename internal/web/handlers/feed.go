@@ -1,0 +1,100 @@
+// internal/web/handlers/feed.go
+package handlers
+
+import (
+	"context"
+	"net/http"
+	"strconv"
+
+	"github.com/churndesk/churndesk/internal/domain"
+	"github.com/churndesk/churndesk/internal/web/templates"
+)
+
+// FeedItemStore is the subset of port.ItemStore used by FeedHandler.
+type FeedItemStore interface {
+	ListItems(ctx context.Context) ([]domain.Item, error)
+	DismissItem(ctx context.Context, id string) error
+	MarkSeen(ctx context.Context, id string) error
+}
+
+// Syncer triggers an immediate re-sync across all integrations.
+type Syncer interface {
+	SyncAll(ctx context.Context) error
+}
+
+// FeedHandler handles the main feed page and HTMX fragment updates.
+type FeedHandler struct {
+	items          FeedItemStore
+	syncer         Syncer
+	defaultColumns int
+}
+
+// NewFeedHandler constructs a FeedHandler.
+func NewFeedHandler(items FeedItemStore, syncer Syncer, defaultColumns int) *FeedHandler {
+	return &FeedHandler{items: items, syncer: syncer, defaultColumns: defaultColumns}
+}
+
+// Page renders the full feed page (initial load).
+func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request) {
+	items, err := h.items.ListItems(r.Context())
+	if err != nil {
+		http.Error(w, "failed to load feed", http.StatusInternalServerError)
+		return
+	}
+	templates.FeedPage(items, h.defaultColumns).Render(r.Context(), w) //nolint:errcheck
+}
+
+// Fragment renders just the feed list (HTMX polling update).
+// Reads ?count=N from query string to detect new-item count changes.
+// Sets X-Has-New-Items: true header when the item count has grown.
+func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {
+	items, err := h.items.ListItems(r.Context())
+	if err != nil {
+		http.Error(w, "failed to load feed", http.StatusInternalServerError)
+		return
+	}
+	prevCount, _ := strconv.Atoi(r.URL.Query().Get("count"))
+	if len(items) > prevCount {
+		w.Header().Set("X-Has-New-Items", "true")
+	}
+	templates.FeedFragment(items, len(items) > prevCount).Render(r.Context(), w) //nolint:errcheck
+}
+
+// Dismiss marks an item as dismissed and returns the updated fragment.
+func (h *FeedHandler) Dismiss(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := h.items.DismissItem(r.Context(), id); err != nil {
+		http.Error(w, "dismiss failed", http.StatusInternalServerError)
+		return
+	}
+	items, err := h.items.ListItems(r.Context())
+	if err != nil {
+		http.Error(w, "failed to load feed", http.StatusInternalServerError)
+		return
+	}
+	templates.FeedFragment(items, false).Render(r.Context(), w) //nolint:errcheck
+}
+
+// Seen marks an item as seen. Returns 204 No Content on success.
+func (h *FeedHandler) Seen(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if err := h.items.MarkSeen(r.Context(), id); err != nil {
+		http.Error(w, "seen failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Sync triggers an immediate re-sync and returns the updated fragment.
+func (h *FeedHandler) Sync(w http.ResponseWriter, r *http.Request) {
+	if err := h.syncer.SyncAll(r.Context()); err != nil {
+		http.Error(w, "sync failed", http.StatusInternalServerError)
+		return
+	}
+	items, err := h.items.ListItems(r.Context())
+	if err != nil {
+		http.Error(w, "failed to load feed", http.StatusInternalServerError)
+		return
+	}
+	templates.FeedFragment(items, false).Render(r.Context(), w) //nolint:errcheck
+}
