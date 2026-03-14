@@ -36,8 +36,13 @@ jobs:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - name: Run pre-commit (all files)
-        run: pre-commit run --all-files
+      - name: Run pre-commit (all files, excluding golangci-lint)
+        run: SKIP=golangci-lint pre-commit run --all-files
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.3.0
 
   test:
     runs-on: ubuntu-latest
