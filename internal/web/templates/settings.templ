@@ -1,0 +1,257 @@
+package templates
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/churndesk/churndesk/internal/domain"
+)
+
+// IntegrationWithSpaces bundles an integration with its child data for the settings page.
+type IntegrationWithSpaces struct {
+	domain.Integration
+	Spaces        []domain.Space
+	Teammates     []domain.Teammate
+	Prerequisites []domain.ReviewPrerequisite
+}
+
+// SettingsPageData carries all data needed by the settings page.
+type SettingsPageData struct {
+	Integrations []IntegrationWithSpaces
+	Settings     map[domain.SettingKey]string
+	Weights      []domain.CategoryWeight
+}
+
+templ SettingsPage(d SettingsPageData) {
+	@Layout("Settings") {
+		<div style="max-width:800px;margin:0 auto;padding:20px 24px">
+			<h1 style="font-size:20px;font-weight:700;margin-bottom:20px">Settings</h1>
+			@integrationSection(d, domain.ProviderGitHub)
+			@integrationSection(d, domain.ProviderJira)
+			@generalSection(d)
+			@weightsSection(d)
+		</div>
+	}
+}
+
+templ integrationSection(d SettingsPageData, provider domain.Provider) {
+	<div class="settings-section">
+		<h2>{ providerLabel(provider) } Integration</h2>
+		for _, ig := range d.Integrations {
+			if ig.Provider == provider {
+				<form hx-post="/settings/integration" hx-swap="none" style="margin-bottom:20px">
+					<input type="hidden" name="id" value={ strconv.Itoa(ig.ID) }/>
+					<input type="hidden" name="provider" value={ string(provider) }/>
+					if provider == domain.ProviderGitHub {
+						<div class="form-group">
+							<label class="form-label">Personal Access Token</label>
+							<input class="form-input" type="password" name="access_token" value={ ig.AccessToken }/>
+						</div>
+						<div class="form-group">
+							<label class="form-label">GitHub Username</label>
+							<input class="form-input" type="text" name="username" value={ ig.Username }/>
+						</div>
+					} else {
+						<div class="form-group">
+							<label class="form-label">Jira Base URL</label>
+							<input class="form-input" type="url" name="base_url" value={ ig.BaseURL }/>
+						</div>
+						<div class="form-group">
+							<label class="form-label">API Token</label>
+							<input class="form-input" type="password" name="access_token" value={ ig.AccessToken }/>
+						</div>
+						<div class="form-group">
+							<label class="form-label">Account ID</label>
+							<input class="form-input" type="text" name="username" value={ ig.Username }/>
+						</div>
+					}
+					<div class="form-group">
+						<label class="form-label">Poll interval (seconds)</label>
+						<input class="form-input" type="number" name="poll_interval_seconds" value={ strconv.Itoa(ig.PollIntervalSeconds) } min="60"/>
+					</div>
+					<button type="submit" class="btn btn-primary">Save</button>
+				</form>
+				@spacesSection(ig)
+				if provider == domain.ProviderGitHub {
+					@teammatesSection(ig)
+					@prerequisitesSection(ig)
+				}
+			}
+		}
+		if !hasProvider(d.Integrations, provider) {
+			<form hx-post="/settings/integration" hx-swap="none">
+				<input type="hidden" name="provider" value={ string(provider) }/>
+				if provider == domain.ProviderGitHub {
+					<div class="form-group">
+						<label class="form-label">Personal Access Token</label>
+						<input class="form-input" type="password" name="access_token" placeholder="ghp_…"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">GitHub Username</label>
+						<input class="form-input" type="text" name="username"/>
+					</div>
+				} else {
+					<div class="form-group">
+						<label class="form-label">Jira Base URL</label>
+						<input class="form-input" type="url" name="base_url" placeholder="https://myorg.atlassian.net"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">API Token</label>
+						<input class="form-input" type="password" name="access_token"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Account ID</label>
+						<input class="form-input" type="text" name="username"/>
+					</div>
+				}
+				<button type="submit" class="btn btn-primary">Connect { providerLabel(provider) }</button>
+			</form>
+		}
+	</div>
+}
+
+templ spacesSection(ig IntegrationWithSpaces) {
+	<div style="margin-top:16px">
+		<h3 style="font-size:13px;font-weight:600;margin-bottom:10px">
+			if ig.Provider == domain.ProviderGitHub {
+				Tracked repositories
+			} else {
+				Tracked Jira spaces
+			}
+		</h3>
+		<form hx-post="/settings/spaces" hx-swap="none">
+			<input type="hidden" name="integration_id" value={ strconv.Itoa(ig.ID) }/>
+			<div id={ fmt.Sprintf("spaces-%d", ig.ID) }>
+				for _, sp := range ig.Spaces {
+					<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+						<input class="form-input" type="text" name="owner" value={ sp.Owner } style="flex:1"/>
+						<input class="form-input" type="text" name="name" value={ sp.Name } style="flex:1"/>
+					</div>
+				}
+				<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+					if ig.Provider == domain.ProviderGitHub {
+						<input class="form-input" type="text" name="owner" placeholder="org or user"/>
+						<input class="form-input" type="text" name="name" placeholder="repo name"/>
+					} else {
+						<input class="form-input" type="text" name="owner" placeholder="project key e.g. FRONT"/>
+						<input class="form-input" type="text" name="name" placeholder="space name"/>
+					}
+				</div>
+			</div>
+			<button type="submit" class="btn" style="margin-top:6px">Save</button>
+		</form>
+	</div>
+}
+
+templ teammatesSection(ig IntegrationWithSpaces) {
+	<div style="margin-top:16px">
+		<h3 style="font-size:13px;font-weight:600;margin-bottom:10px">Teammates to watch</h3>
+		<form hx-post="/settings/teammates" hx-swap="none">
+			<input type="hidden" name="integration_id" value={ strconv.Itoa(ig.ID) }/>
+			for _, t := range ig.Teammates {
+				<div style="display:flex;gap:8px;margin-bottom:6px">
+					<input class="form-input" type="text" name="github_username" value={ t.GitHubUsername } placeholder="github_username"/>
+					<input class="form-input" type="text" name="display_name" value={ t.DisplayName } placeholder="display name"/>
+				</div>
+			}
+			<div style="display:flex;gap:8px;margin-bottom:6px">
+				<input class="form-input" type="text" name="github_username" placeholder="github_username"/>
+				<input class="form-input" type="text" name="display_name" placeholder="display name"/>
+			</div>
+			<button type="submit" class="btn">Save</button>
+		</form>
+	</div>
+}
+
+templ prerequisitesSection(ig IntegrationWithSpaces) {
+	<div style="margin-top:16px">
+		<h3 style="font-size:13px;font-weight:600;margin-bottom:10px">Review prerequisites</h3>
+		<p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+			PRs must be approved by all listed bots before gaining age points.
+		</p>
+		<form hx-post="/settings/prerequisites" hx-swap="none">
+			<input type="hidden" name="integration_id" value={ strconv.Itoa(ig.ID) }/>
+			for _, p := range ig.Prerequisites {
+				<div style="display:flex;gap:8px;margin-bottom:6px">
+					<input class="form-input" type="text" name="github_username" value={ p.GitHubUsername } placeholder="copilot[bot]"/>
+					<input class="form-input" type="text" name="display_name" value={ p.DisplayName } placeholder="Copilot"/>
+				</div>
+			}
+			<div style="display:flex;gap:8px;margin-bottom:6px">
+				<input class="form-input" type="text" name="github_username" placeholder="copilot[bot]"/>
+				<input class="form-input" type="text" name="display_name" placeholder="display name"/>
+			</div>
+			<button type="submit" class="btn">Save</button>
+		</form>
+	</div>
+}
+
+templ generalSection(d SettingsPageData) {
+	<div class="settings-section">
+		<h2>General</h2>
+		<form hx-post="/settings/general" hx-swap="none">
+			<div class="form-group">
+				<label class="form-label">Feed columns (1–3)</label>
+				<input class="form-input" type="number" name="feed_columns" min="1" max="3" value={ d.Settings[domain.SettingFeedColumns] }/>
+			</div>
+			<div class="form-group">
+				<label class="form-label">Auto-refresh interval (seconds)</label>
+				<input class="form-input" type="number" name="auto_refresh_interval" min="5" value={ d.Settings[domain.SettingAutoRefreshInterval] }/>
+			</div>
+			<div class="form-group">
+				<label class="form-label">Age multiplier (points per hour)</label>
+				<input class="form-input" type="number" name="age_multiplier" min="0" step="0.1" value={ d.Settings[domain.SettingAgeMultiplier] }/>
+			</div>
+			<div class="form-group">
+				<label class="form-label">Max age boost</label>
+				<input class="form-input" type="number" name="max_age_boost" min="0" value={ d.Settings[domain.SettingMaxAgeBoost] }/>
+			</div>
+			<div class="form-group">
+				<label class="form-label">Minimum review count</label>
+				<input class="form-input" type="number" name="min_review_count" min="1" value={ d.Settings[domain.SettingMinReviewCount] }/>
+			</div>
+			<button type="submit" class="btn btn-primary">Save general settings</button>
+		</form>
+	</div>
+}
+
+templ weightsSection(d SettingsPageData) {
+	<div class="settings-section">
+		<h2>Priority weights</h2>
+		<p style="font-size:12px;color:var(--muted);margin-bottom:16px">
+			Use "Re-score all" to apply weights retroactively.
+		</p>
+		<form hx-post="/settings/weights" hx-swap="none">
+			for _, w := range d.Weights {
+				<div class="form-group" style="display:flex;align-items:center;gap:12px">
+					<label class="form-label" style="width:180px;margin:0">{ typeLabel(w.ItemType) }</label>
+					<input type="range" min="1" max="100" name={ "weight_" + string(w.ItemType) } value={ strconv.Itoa(w.Weight) } style="flex:1"/>
+					<span style="width:30px;text-align:right;font-size:12px">{ strconv.Itoa(w.Weight) }</span>
+				</div>
+			}
+			<div style="display:flex;gap:8px;margin-top:16px">
+				<button type="submit" class="btn btn-primary">Save weights</button>
+				<button type="button" class="btn" hx-post="/settings/rescore" hx-swap="none">Re-score all items</button>
+			</div>
+		</form>
+	</div>
+}
+
+func providerLabel(p domain.Provider) string {
+	if p == domain.ProviderGitHub {
+		return "GitHub"
+	}
+	return "Jira"
+}
+
+func hasProvider(igs []IntegrationWithSpaces, provider domain.Provider) bool {
+	for _, ig := range igs {
+		if ig.Provider == provider {
+			return true
+		}
+	}
+	return false
+}
+
+var _ = fmt.Sprintf
+var _ = strconv.Itoa
