@@ -254,6 +254,29 @@ func (s *integrationStore) DeletePrerequisite(ctx context.Context, id int) error
 	return err
 }
 
+// ReplacePrerequisites atomically deletes all review prerequisites for the given
+// integration and inserts the provided replacement set. Either all changes commit or none do.
+func (s *integrationStore) ReplacePrerequisites(ctx context.Context, integrationID int, prereqs []domain.ReviewPrerequisite) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM review_prerequisites WHERE integration_id = ?`, integrationID); err != nil {
+		return fmt.Errorf("delete prerequisites: %w", err)
+	}
+	for _, p := range prereqs {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO review_prerequisites (integration_id, github_username, display_name) VALUES (?,?,?)`,
+			p.IntegrationID, p.GitHubUsername, p.DisplayName,
+		); err != nil {
+			return fmt.Errorf("create prerequisite: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *integrationStore) IsOnboardingComplete(ctx context.Context) (bool, error) {
 	var count int
 	err := s.db.QueryRowContext(ctx, `

@@ -21,6 +21,14 @@ type stubSettingsIntegrationStore struct {
 	teammates     []domain.Teammate
 	prerequisites []domain.ReviewPrerequisite
 	created       []domain.Integration
+
+	replacedSpaces        []domain.Space
+	replacedTeammates     []domain.Teammate
+	replacedPrerequisites []domain.ReviewPrerequisite
+
+	replaceSpacesErr        error
+	replaceTeammatesErr     error
+	replacePrerequisitesErr error
 }
 
 var _ handlers.SettingsIntegrationStore = (*stubSettingsIntegrationStore)(nil)
@@ -47,20 +55,28 @@ func (s *stubSettingsIntegrationStore) CreateSpace(_ context.Context, _ domain.S
 func (s *stubSettingsIntegrationStore) ListSpaces(_ context.Context, _ int) ([]domain.Space, error)   { return s.spaces, nil }
 func (s *stubSettingsIntegrationStore) UpdateSpace(_ context.Context, _ domain.Space) error           { return nil }
 func (s *stubSettingsIntegrationStore) DeleteSpace(_ context.Context, _ int) error                    { return nil }
-func (s *stubSettingsIntegrationStore) ReplaceSpaces(_ context.Context, _ int, _ []domain.Space) error { return nil }
+func (s *stubSettingsIntegrationStore) ReplaceSpaces(_ context.Context, _ int, spaces []domain.Space) error {
+	s.replacedSpaces = spaces
+	return s.replaceSpacesErr
+}
 func (s *stubSettingsIntegrationStore) CreateTeammate(_ context.Context, _ domain.Teammate) error     { return nil }
 func (s *stubSettingsIntegrationStore) ListTeammates(_ context.Context, _ int) ([]domain.Teammate, error) {
 	return s.teammates, nil
 }
 func (s *stubSettingsIntegrationStore) DeleteTeammate(_ context.Context, _ int) error { return nil }
-func (s *stubSettingsIntegrationStore) ReplaceTeammates(_ context.Context, _ int, _ []domain.Teammate) error {
-	return nil
+func (s *stubSettingsIntegrationStore) ReplaceTeammates(_ context.Context, _ int, teammates []domain.Teammate) error {
+	s.replacedTeammates = teammates
+	return s.replaceTeammatesErr
 }
 func (s *stubSettingsIntegrationStore) CreatePrerequisite(_ context.Context, _ domain.ReviewPrerequisite) error { return nil }
 func (s *stubSettingsIntegrationStore) ListPrerequisites(_ context.Context, _ int) ([]domain.ReviewPrerequisite, error) {
 	return s.prerequisites, nil
 }
 func (s *stubSettingsIntegrationStore) DeletePrerequisite(_ context.Context, _ int) error { return nil }
+func (s *stubSettingsIntegrationStore) ReplacePrerequisites(_ context.Context, _ int, prereqs []domain.ReviewPrerequisite) error {
+	s.replacedPrerequisites = prereqs
+	return s.replacePrerequisitesErr
+}
 func (s *stubSettingsIntegrationStore) IsOnboardingComplete(_ context.Context) (bool, error) {
 	return len(s.integrations) > 0, nil
 }
@@ -159,4 +175,108 @@ func TestSettingsHandler_Rescore_CallsStore(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.True(t, rescore.rescored)
+}
+
+func TestSettingsHandler_SaveSpaces_ReplacesSpaces(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{
+		spaces: []domain.Space{
+			{IntegrationID: 1, Owner: "acme", Name: "repo", Provider: "jira", BoardType: "scrum", JiraBoardID: 42, Enabled: true},
+		},
+	}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{"integration_id": {"1"}, "owner": {"acme"}, "name": {"repo"}}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/spaces", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SaveSpaces(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, integrations.replacedSpaces, 1)
+	sp := integrations.replacedSpaces[0]
+	assert.Equal(t, "acme", sp.Owner)
+	assert.Equal(t, "repo", sp.Name)
+	assert.Equal(t, domain.Provider("jira"), sp.Provider)
+	assert.Equal(t, "scrum", sp.BoardType)
+	assert.Equal(t, 42, sp.JiraBoardID)
+}
+
+func TestSettingsHandler_SaveSpaces_StoreError_Returns500(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{replaceSpacesErr: assert.AnError}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{"integration_id": {"1"}, "owner": {"acme"}, "name": {"repo"}}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/spaces", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SaveSpaces(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+func TestSettingsHandler_SaveTeammates_ReplacesTeammates(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{
+		"integration_id":   {"1"},
+		"github_username":  {"alice", "bob"},
+		"display_name":     {"Alice", "Bob"},
+	}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/teammates", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SaveTeammates(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, integrations.replacedTeammates, 2)
+	assert.Equal(t, "alice", integrations.replacedTeammates[0].GitHubUsername)
+	assert.Equal(t, "Alice", integrations.replacedTeammates[0].DisplayName)
+	assert.Equal(t, "bob", integrations.replacedTeammates[1].GitHubUsername)
+}
+
+func TestSettingsHandler_SaveTeammates_StoreError_Returns500(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{replaceTeammatesErr: assert.AnError}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{"integration_id": {"1"}, "github_username": {"alice"}, "display_name": {"Alice"}}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/teammates", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SaveTeammates(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+}
+
+func TestSettingsHandler_SavePrerequisites_ReplacesPrerequisites(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{
+		"integration_id":  {"1"},
+		"github_username": {"alice"},
+		"display_name":    {"Alice"},
+	}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/prerequisites", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SavePrerequisites(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Len(t, integrations.replacedPrerequisites, 1)
+	assert.Equal(t, "alice", integrations.replacedPrerequisites[0].GitHubUsername)
+	assert.Equal(t, "Alice", integrations.replacedPrerequisites[0].DisplayName)
+}
+
+func TestSettingsHandler_SavePrerequisites_StoreError_Returns500(t *testing.T) {
+	integrations := &stubSettingsIntegrationStore{replacePrerequisitesErr: assert.AnError}
+	h := handlers.NewSettingsHandler(integrations, &stubSettingsHandlerStore{}, &stubRescoreStore{}, nil)
+
+	form := url.Values{"integration_id": {"1"}, "github_username": {"alice"}, "display_name": {"Alice"}}
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/prerequisites", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.SavePrerequisites(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 }
