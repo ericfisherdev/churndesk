@@ -2,6 +2,7 @@
 package templates
 
 import (
+	"net/url"
 	"strconv"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -43,36 +44,38 @@ templ feedGrid(items []domain.Item, columns int) {
 
 // FeedItem renders a single feed card.
 templ FeedItem(item domain.Item) {
-	<a
-		href={ templ.SafeURL(sanitizeURL(item.URL)) }
-		class={ "feed-item", itemTypeClass(item.Type), unseenClass(item.Seen) }
-		hx-post={ "/items/" + item.ID + "/seen" }
-		hx-trigger="click"
-		hx-swap="none"
-		style="display:block;text-decoration:none;color:inherit">
-		<div class="flex gap-8 items-center" style="flex-wrap:wrap">
-			@TypePill(item.Type)
-			@SourcePill(item.Source, item.PROwner, item.PRRepo)
-		</div>
-		<div class="item-title">{ item.Title }</div>
-		if item.PrerequisitesMet == 0 {
-			<div class="item-prereq-warning">⏳ Awaiting required approvals</div>
-		}
-		<div class="item-meta">
-			<span>{ relativeTime(item.CreatedAt) }</span>
-		</div>
-		if latestComment := extractLatestComment(item.Metadata); latestComment != "" {
-			<div class="item-comment-preview">{ latestComment }</div>
-		}
+	<div class={ "feed-item", itemTypeClass(item.Type), unseenClass(item.Seen) }>
+		<a
+			href={ templ.SafeURL(sanitizeURL(item.URL)) }
+			hx-post={ "/items/" + url.PathEscape(item.ID) + "/seen" }
+			hx-trigger="click"
+			hx-swap="none"
+			style="display:block;text-decoration:none;color:inherit">
+			<div class="flex gap-8 items-center" style="flex-wrap:wrap">
+				@TypePill(item.Type)
+				@SourcePill(item.Source, item.PROwner, item.PRRepo)
+			</div>
+			<div class="item-title">{ item.Title }</div>
+			if item.PrerequisitesMet == 0 {
+				<div class="item-prereq-warning">⏳ Awaiting required approvals</div>
+			}
+			<div class="item-meta">
+				<span>{ relativeTime(item.CreatedAt) }</span>
+			</div>
+			if latestComment := extractLatestComment(item.Metadata); latestComment != "" {
+				<div class="item-comment-preview">{ latestComment }</div>
+			}
+		</a>
 		<button
 			class="dismiss-btn"
-			hx-post={ "/items/" + item.ID + "/dismiss" }
+			hx-post={ "/items/" + url.PathEscape(item.ID) + "/dismiss" }
 			hx-target="closest .feed-item"
 			hx-swap="outerHTML"
 			onclick="event.stopPropagation()"
+			onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation()}"
 			title="Dismiss"
 			aria-label="Dismiss">
 			⊗
 		</button>
-	</a>
+	</div>
 }

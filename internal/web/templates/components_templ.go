@@ -11,6 +11,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/url"
@@ -67,7 +68,7 @@ func TypePill(t domain.ItemType) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(typeLabel(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 16, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 17, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -111,7 +112,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(prOwner)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 22, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 23, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -124,7 +125,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(prRepo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 22, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 23, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -173,7 +174,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(author)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 32, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 33, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -186,7 +187,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(createdAt.Format("Jan 2, 2006 15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 33, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 34, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -237,7 +238,7 @@ func ErrorPartial(message string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 42, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 43, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -369,6 +370,10 @@ func sanitizeURL(rawURL string) string {
 	if err != nil {
 		return ""
 	}
+	// Reject protocol-relative URLs like "//evil.example"
+	if strings.HasPrefix(rawURL, "//") {
+		return ""
+	}
 	scheme := strings.ToLower(parsed.Scheme)
 	switch scheme {
 	case "", "http", "https", "mailto", "tel":
@@ -390,35 +395,20 @@ func sanitizeURL(rawURL string) string {
 }
 
 func extractLatestComment(metadata string) string {
-	// Fast path: look for "latest_comment" key in metadata JSON string.
-	// Full JSON parsing is done in the adapter layer; here we just extract for display.
-	const key = `"latest_comment":"`
-	start := -1
-	for i := range metadata {
-		if i+len(key) <= len(metadata) && metadata[i:i+len(key)] == key {
-			start = i + len(key)
-			break
-		}
-	}
-	if start < 0 || start >= len(metadata) {
+	if metadata == "" {
 		return ""
 	}
-	end := -1
-	for i := start; i < len(metadata); i++ {
-		if metadata[i] == '"' && (i == start || metadata[i-1] != '\\') {
-			end = i
-			break
-		}
+	var m struct {
+		LatestComment string `json:"latest_comment"`
 	}
-	if end < 0 {
+	if err := json.Unmarshal([]byte(metadata), &m); err != nil {
 		return ""
 	}
-	comment := metadata[start:end]
-	runes := []rune(comment)
+	runes := []rune(m.LatestComment)
 	if len(runes) > 120 {
-		comment = string(runes[:120]) + "…"
+		return string(runes[:120]) + "…"
 	}
-	return comment
+	return m.LatestComment
 }
 
 var _ = templruntime.GeneratedTemplate

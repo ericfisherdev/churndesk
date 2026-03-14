@@ -13,7 +13,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001 && templ generate ./internal/web/templates/...
+RUN go install github.com/a-h/templ/cmd/templ@v0.3.1001 && templ generate -path ./internal/web/templates
 RUN go build -o /churndesk ./cmd/churndesk
 
 # Stage 2: runtime

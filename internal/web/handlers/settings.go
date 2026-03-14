@@ -103,13 +103,13 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 		integration.ID = id
 		if err := h.integrations.UpdateIntegration(r.Context(), integration); err != nil {
 			log.Printf("update integration: %v", err)
-			h.respondError(w, "Failed to update integration")
+			h.respondError(w, "Failed to update integration", http.StatusInternalServerError)
 			return
 		}
 	} else {
 		if _, err := h.integrations.CreateIntegration(r.Context(), integration); err != nil {
 			log.Printf("create integration: %v", err)
-			h.respondError(w, "Failed to create integration")
+			h.respondError(w, "Failed to create integration", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -133,13 +133,13 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 	spaces, err := h.integrations.ListSpaces(r.Context(), integrationID)
 	if err != nil {
 		log.Printf("list spaces for integration %d: %v", integrationID, err)
-		h.respondError(w, "Failed to load spaces")
+		h.respondError(w, "Failed to load spaces", http.StatusInternalServerError)
 		return
 	}
 	for _, sp := range spaces {
 		if err := h.integrations.DeleteSpace(r.Context(), sp.ID); err != nil {
 			log.Printf("delete space %d: %v", sp.ID, err)
-			h.respondError(w, "Failed to delete space")
+			h.respondError(w, "Failed to delete space", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -158,7 +158,7 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := h.integrations.CreateSpace(r.Context(), sp); err != nil {
 			log.Printf("create space: %v", err)
-			h.respondError(w, "Failed to create space")
+			h.respondError(w, "Failed to create space", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -173,7 +173,12 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 	}
 	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
 
-	existing, _ := h.integrations.ListTeammates(r.Context(), integrationID)
+	existing, err := h.integrations.ListTeammates(r.Context(), integrationID)
+	if err != nil {
+		log.Printf("list teammates for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to load teammates", http.StatusInternalServerError)
+		return
+	}
 	for _, t := range existing {
 		if err := h.integrations.DeleteTeammate(r.Context(), t.ID); err != nil {
 			log.Printf("delete teammate %d: %v", t.ID, err)
@@ -189,11 +194,13 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 		if i < len(displayNames) {
 			dn = displayNames[i]
 		}
-		h.integrations.CreateTeammate(r.Context(), domain.Teammate{ //nolint:errcheck
+		if err := h.integrations.CreateTeammate(r.Context(), domain.Teammate{
 			IntegrationID:  integrationID,
 			GitHubUsername: u,
 			DisplayName:    dn,
-		})
+		}); err != nil {
+			log.Printf("create teammate %s for integration %d: %v", u, integrationID, err)
+		}
 	}
 	h.respondSuccess(w)
 }
@@ -206,7 +213,12 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 	}
 	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
 
-	existing, _ := h.integrations.ListPrerequisites(r.Context(), integrationID)
+	existing, err := h.integrations.ListPrerequisites(r.Context(), integrationID)
+	if err != nil {
+		log.Printf("list prerequisites for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to load prerequisites", http.StatusInternalServerError)
+		return
+	}
 	for _, p := range existing {
 		if err := h.integrations.DeletePrerequisite(r.Context(), p.ID); err != nil {
 			log.Printf("delete prerequisite %d: %v", p.ID, err)
@@ -297,7 +309,7 @@ func (h *SettingsHandler) SaveGeneral(w http.ResponseWriter, r *http.Request) {
 func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 	all, err := h.settings.GetAll(r.Context())
 	if err != nil {
-		h.respondError(w, "Failed to load settings")
+		h.respondError(w, "Failed to load settings", http.StatusInternalServerError)
 		return
 	}
 	ageMultiplier, _ := strconv.ParseFloat(all[domain.SettingAgeMultiplier], 64)
@@ -306,7 +318,7 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 	cw, err := h.settings.GetCategoryWeights(r.Context())
 	if err != nil {
 		log.Printf("get category weights: %v", err)
-		h.respondError(w, "Failed to load category weights")
+		h.respondError(w, "Failed to load category weights", http.StatusInternalServerError)
 		return
 	}
 	weights := make(map[domain.ItemType]int, len(cw))
@@ -317,7 +329,7 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 	integrations, err := h.integrations.ListIntegrations(r.Context())
 	if err != nil {
 		log.Printf("list integrations: %v", err)
-		h.respondError(w, "Failed to load integrations")
+		h.respondError(w, "Failed to load integrations", http.StatusInternalServerError)
 		return
 	}
 	prereqSet := map[string]struct{}{}
@@ -325,7 +337,7 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 		prereqs, err := h.integrations.ListPrerequisites(r.Context(), ig.ID)
 		if err != nil {
 			log.Printf("list prerequisites for integration %d: %v", ig.ID, err)
-			h.respondError(w, "Failed to load prerequisites")
+			h.respondError(w, "Failed to load prerequisites", http.StatusInternalServerError)
 			return
 		}
 		for _, p := range prereqs {
@@ -339,7 +351,7 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.rescore.RescoreAll(r.Context(), weights, prereqUsernames, ageMultiplier, maxAgeBoost); err != nil {
 		log.Printf("rescore: %v", err)
-		h.respondError(w, "Rescore failed")
+		h.respondError(w, "Rescore failed", http.StatusInternalServerError)
 		return
 	}
 	h.respondSuccess(w)
@@ -351,10 +363,10 @@ func (h *SettingsHandler) respondSuccess(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *SettingsHandler) respondError(w http.ResponseWriter, msg string) {
+func (h *SettingsHandler) respondError(w http.ResponseWriter, msg string, status int) { //nolint:unparam
 	trigger, _ := json.Marshal(map[string]string{"syncError": msg})
 	w.Header().Set("HX-Trigger", string(trigger))
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(status)
 }
 
 func (h *SettingsHandler) buildPageData(ctx context.Context) (templates.SettingsPageData, error) {

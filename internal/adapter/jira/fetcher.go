@@ -90,7 +90,7 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, lastSyncedAt *time.Time)
 
 	// jira_comment: new comment on issue where I authored at least one comment.
 	if iHaveCommented(issue.Comments, f.accountID) {
-		if newest := firstNewCommentFrom(issue.Comments, f.accountID, *lastSyncedAt); newest != nil {
+		if newest := latestNewCommentFrom(issue.Comments, f.accountID, *lastSyncedAt); newest != nil {
 			commentItem := domain.Item{
 				ID:         "jira:comment:" + issue.Key,
 				Source:     "jira",
@@ -152,15 +152,19 @@ func iHaveCommented(comments []domain.Comment, accountID string) bool {
 	return false
 }
 
-// firstNewCommentFrom returns the first comment not authored by accountID posted after since,
+// latestNewCommentFrom returns the most recent comment not authored by accountID posted after since,
 // or nil if none exists.
-func firstNewCommentFrom(comments []domain.Comment, accountID string, since time.Time) *domain.Comment {
+func latestNewCommentFrom(comments []domain.Comment, accountID string, since time.Time) *domain.Comment {
+	var latest *domain.Comment
 	for i := range comments {
-		if comments[i].Author != accountID && comments[i].CreatedAt.After(since) {
-			return &comments[i]
+		c := &comments[i]
+		if c.Author != accountID && c.CreatedAt.After(since) {
+			if latest == nil || c.CreatedAt.After(latest.CreatedAt) {
+				latest = c
+			}
 		}
 	}
-	return nil
+	return latest
 }
 
 func buildCommentJiraMetadata(base string, c *domain.Comment) string {

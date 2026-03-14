@@ -269,10 +269,20 @@ func ExtractJiraKeys(title, body, branch string) []string {
 	return keys
 }
 
+// collapseReviewsToLatest returns the most recent review state per reviewer,
+// relying on the GitHub API's chronological ordering (last entry wins).
+func collapseReviewsToLatest(reviews []domain.Review) map[string]string {
+	latest := make(map[string]string, len(reviews))
+	for _, r := range reviews {
+		latest[r.Author] = r.State
+	}
+	return latest
+}
+
 func countApprovals(reviews []domain.Review, excludeUser string) int {
 	n := 0
-	for _, r := range reviews {
-		if r.State == "APPROVED" && r.Author != excludeUser {
+	for author, state := range collapseReviewsToLatest(reviews) {
+		if state == "APPROVED" && author != excludeUser {
 			n++
 		}
 	}
@@ -281,8 +291,8 @@ func countApprovals(reviews []domain.Review, excludeUser string) int {
 
 func countAllApprovals(reviews []domain.Review) int {
 	n := 0
-	for _, r := range reviews {
-		if r.State == "APPROVED" {
+	for _, state := range collapseReviewsToLatest(reviews) {
+		if state == "APPROVED" {
 			n++
 		}
 	}
@@ -290,26 +300,17 @@ func countAllApprovals(reviews []domain.Review) int {
 }
 
 func hasUserReviewed(reviews []domain.Review, user string) bool {
-	for _, r := range reviews {
-		if r.Author == user {
-			return true
-		}
-	}
-	return false
+	_, ok := collapseReviewsToLatest(reviews)[user]
+	return ok
 }
 
 func hasDismissedReview(reviews []domain.Review, user string) bool {
-	for _, r := range reviews {
-		if r.Author == user && r.State == "DISMISSED" {
-			return true
-		}
-	}
-	return false
+	return collapseReviewsToLatest(reviews)[user] == "DISMISSED"
 }
 
 func hasChangesRequested(reviews []domain.Review) bool {
-	for _, r := range reviews {
-		if r.State == "CHANGES_REQUESTED" {
+	for _, state := range collapseReviewsToLatest(reviews) {
+		if state == "CHANGES_REQUESTED" {
 			return true
 		}
 	}
