@@ -5,12 +5,6 @@ package handlers
 
 import "net/http"
 
-// JiraHandler handles Jira detail page and actions. Real implementation in jira.go.
-type JiraHandler struct{}
-
-func (h *JiraHandler) Page(w http.ResponseWriter, r *http.Request)       {}
-func (h *JiraHandler) PostComment(w http.ResponseWriter, r *http.Request) {}
-
 // SettingsHandler handles the settings page and save actions. Real implementation in settings.go.
 type SettingsHandler struct{}
 
