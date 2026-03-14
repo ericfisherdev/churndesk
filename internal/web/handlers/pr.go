@@ -71,6 +71,11 @@ func (h *PRHandler) Page(w http.ResponseWriter, r *http.Request) {
 		h.renderError(w, r, http.StatusBadGateway, "Failed to load PR from GitHub")
 		return
 	}
+	if pr == nil {
+		log.Printf("get PR %s/%s#%d: returned nil without error", owner, repo, number)
+		h.renderError(w, r, http.StatusBadGateway, "Failed to load PR from GitHub")
+		return
+	}
 
 	comments, err := h.gh.ListPRComments(r.Context(), owner, repo, number)
 	if err != nil {

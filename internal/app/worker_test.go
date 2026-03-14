@@ -81,6 +81,9 @@ func (s *stubIntegrationStore) ListTeammates(ctx context.Context, id int) ([]dom
 	return nil, nil
 }
 func (s *stubIntegrationStore) DeleteTeammate(ctx context.Context, id int) error { return nil }
+func (s *stubIntegrationStore) ReplaceTeammates(_ context.Context, _ int, _ []domain.Teammate) error {
+	return nil
+}
 func (s *stubIntegrationStore) CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error {
 	return nil
 }

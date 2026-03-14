@@ -46,6 +46,7 @@ type IntegrationStore interface {
 	CreateTeammate(ctx context.Context, t domain.Teammate) error
 	ListTeammates(ctx context.Context, integrationID int) ([]domain.Teammate, error)
 	DeleteTeammate(ctx context.Context, id int) error
+	ReplaceTeammates(ctx context.Context, integrationID int, teammates []domain.Teammate) error
 
 	CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error
 	ListPrerequisites(ctx context.Context, integrationID int) ([]domain.ReviewPrerequisite, error)
