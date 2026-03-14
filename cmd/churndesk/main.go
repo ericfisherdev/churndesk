@@ -69,7 +69,7 @@ func main() {
 		fetchers[domain.ProviderJira] = jiraFetcher
 	}
 
-	scheduler := app.NewScheduler(itemStore, integrationStore, fetchers)
+	scheduler := app.NewScheduler(itemStore, integrationStore, settingsStore, fetchers)
 	scorer := app.NewScorer(itemStore, settingsStore, integrationStore)
 
 	feedHandler := handlers.NewFeedHandler(itemStore, scheduler, settingsStore)
