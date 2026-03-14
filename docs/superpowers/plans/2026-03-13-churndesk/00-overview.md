@@ -122,4 +122,3 @@ churndesk/
 | [chunk-6-settings-deploy.md](chunk-6-settings-deploy.md) | Settings handler+templates, main.go wiring, Dockerfile, docker-compose, CI | 25–29 |
 
 ---
-

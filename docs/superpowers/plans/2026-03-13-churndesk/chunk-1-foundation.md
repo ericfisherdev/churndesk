@@ -828,4 +828,3 @@ git commit -m "feat: add domain port interfaces (stores, fetcher, API clients)"
 ```
 
 ---
-
