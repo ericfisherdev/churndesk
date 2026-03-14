@@ -13,12 +13,16 @@ type OnboardingChecker interface {
 	IsOnboardingComplete(ctx context.Context) (bool, error)
 }
 
-var onboardingExemptPrefixes = []string{
-	"/settings",
-	"/static/",
+var onboardingExemptExact = []string{
 	"/feed",
-	"/items/", // POST /items/:id/dismiss and /seen
-	"/sync",   // POST /sync
+	"/sync",
+	"/settings",
+}
+
+var onboardingExemptPrefixes = []string{
+	"/static/",
+	"/items/",
+	"/settings/", // settings sub-paths like POST /settings/integration
 }
 
 // OnboardingGate returns middleware that redirects to /settings?setup=1
@@ -32,7 +36,11 @@ func OnboardingGate(checker OnboardingChecker) func(http.Handler) http.Handler {
 				return
 			}
 			done, err := checker.IsOnboardingComplete(r.Context())
-			if err != nil || done {
+			if err != nil {
+				http.Error(w, "service unavailable", http.StatusInternalServerError)
+				return
+			}
+			if done {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -48,6 +56,11 @@ func OnboardingGate(checker OnboardingChecker) func(http.Handler) http.Handler {
 }
 
 func isExemptPath(path string) bool {
+	for _, exact := range onboardingExemptExact {
+		if path == exact {
+			return true
+		}
+	}
 	for _, prefix := range onboardingExemptPrefixes {
 		if strings.HasPrefix(path, prefix) {
 			return true

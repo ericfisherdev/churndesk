@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	gogithub "github.com/google/go-github/v68/github"
 	"golang.org/x/oauth2"
@@ -45,6 +46,7 @@ func main() {
 	ghToken, ghUsername := loadGitHubCredentials(integrationStore)
 	ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: ghToken})
 	tc := oauth2.NewClient(context.Background(), ts)
+	tc.Timeout = 30 * time.Second
 	ghGoClient := gogithub.NewClient(tc)
 	ghClient := github.NewClient(ghGoClient, ghUsername)
 
@@ -139,7 +141,7 @@ func loadJiraCredentials(store port.IntegrationStore) (baseURL, email, token, ac
 	}
 	for _, ig := range integrations {
 		if ig.Provider == domain.ProviderJira && ig.Enabled {
-			return ig.BaseURL, ig.Username, ig.AccessToken, ig.Username
+			return ig.BaseURL, ig.Username, ig.AccessToken, ig.AccountID
 		}
 	}
 	return

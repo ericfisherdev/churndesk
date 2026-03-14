@@ -301,7 +301,7 @@ func PRPage(d PRPageData) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" hx-target=\"#comment-list\" hx-swap=\"beforeend\"><textarea name=\"body\" placeholder=\"Leave a comment…\" style=\"width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px;resize:vertical\"></textarea><div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button type=\"submit\" class=\"btn btn-primary\">Comment</button></div></form></div><!-- Review bar (not shown for own PRs) -->")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" hx-target=\"#comment-list\" hx-swap=\"beforeend\"><textarea name=\"body\" aria-label=\"Leave a comment\" placeholder=\"Leave a comment…\" style=\"width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px;resize:vertical\"></textarea><div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button type=\"submit\" class=\"btn btn-primary\">Comment</button></div></form></div><!-- Review bar (not shown for own PRs) -->")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -313,13 +313,13 @@ func PRPage(d PRPageData) templ.Component {
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/prs/%s/%s/%d/reviews", d.PR.Owner, d.PR.Repo, d.PR.Number))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 95, Col: 95}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 96, Col: 95}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" hx-swap=\"none\"><div style=\"display:flex;gap:8px;margin-bottom:8px\"><label><input type=\"radio\" name=\"verdict\" value=\"APPROVE\"> Approve</label> <label><input type=\"radio\" name=\"verdict\" value=\"REQUEST_CHANGES\"> Request changes</label> <label><input type=\"radio\" name=\"verdict\" value=\"COMMENT\"> Comment</label></div><textarea name=\"body\" placeholder=\"Review comment (optional)\" style=\"width:100%;min-height:60px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px\"></textarea><div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button type=\"submit\" class=\"btn btn-primary\">Submit review</button></div></form></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" hx-swap=\"none\"><div style=\"display:flex;gap:8px;margin-bottom:8px\"><label><input type=\"radio\" name=\"verdict\" value=\"APPROVE\"> Approve</label> <label><input type=\"radio\" name=\"verdict\" value=\"REQUEST_CHANGES\"> Request changes</label> <label><input type=\"radio\" name=\"verdict\" value=\"COMMENT\"> Comment</label></div><textarea name=\"body\" aria-label=\"Review comment\" placeholder=\"Review comment (optional)\" style=\"width:100%;min-height:60px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px\"></textarea><div style=\"display:flex;justify-content:flex-end;margin-top:8px\"><button type=\"submit\" class=\"btn btn-primary\">Submit review</button></div></form></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -336,7 +336,7 @@ func PRPage(d PRPageData) templ.Component {
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/prs/%s/%s/%d/reviewers", d.PR.Owner, d.PR.Repo, d.PR.Number))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 112, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 113, Col: 97}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -354,7 +354,7 @@ func PRPage(d PRPageData) templ.Component {
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(t.GitHubUsername)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 116, Col: 72}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 117, Col: 72}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -367,7 +367,7 @@ func PRPage(d PRPageData) templ.Component {
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(t.DisplayName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 117, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 118, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -380,7 +380,7 @@ func PRPage(d PRPageData) templ.Component {
 					var templ_7745c5c3_Var20 string
 					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(t.GitHubUsername)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 117, Col: 81}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 118, Col: 81}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 					if templ_7745c5c3_Err != nil {
@@ -414,7 +414,7 @@ func PRPage(d PRPageData) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(r.Author)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 136, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 137, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 				if templ_7745c5c3_Err != nil {
@@ -459,7 +459,7 @@ func PRPage(d PRPageData) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(c.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 150, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 151, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -512,7 +512,7 @@ func prCommentBlock(c RenderedComment) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(c.Author)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 163, Col: 58}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 164, Col: 58}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -525,7 +525,7 @@ func prCommentBlock(c RenderedComment) templ.Component {
 		var templ_7745c5c3_Var25 string
 		templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(c.CreatedAt.Format("Jan 2, 2006 15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 164, Col: 92}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 165, Col: 92}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 		if templ_7745c5c3_Err != nil {
@@ -634,7 +634,7 @@ func reviewStateBadge(state string) templ.Component {
 			var templ_7745c5c3_Var28 string
 			templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(state)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 190, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 191, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 			if templ_7745c5c3_Err != nil {
@@ -780,7 +780,7 @@ func ErrorPage(message string) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 225, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/pr.templ`, Line: 226, Col: 77}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {

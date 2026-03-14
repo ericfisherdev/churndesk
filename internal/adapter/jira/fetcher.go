@@ -91,14 +91,17 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, lastSyncedAt *time.Time)
 	// jira_comment: new comment on issue where I authored at least one comment.
 	if iHaveCommented(issue.Comments, f.accountID) {
 		if newest := firstNewCommentFrom(issue.Comments, f.accountID, *lastSyncedAt); newest != nil {
-			items = append(items, domain.Item{
+			commentItem := domain.Item{
 				ID:         "jira:comment:" + issue.Key,
 				Source:     "jira",
 				Type:       domain.ItemTypeJiraComment,
 				ExternalID: issue.Key,
 				Title:      "New comment: " + issue.Summary,
 				Metadata:   buildCommentJiraMetadata(metadata, newest),
-			})
+				CreatedAt:  newest.CreatedAt,
+				UpdatedAt:  newest.CreatedAt,
+			}
+			items = append(items, commentItem)
 		}
 	}
 
@@ -107,8 +110,12 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, lastSyncedAt *time.Time)
 		if items[i].URL == "" {
 			items[i].URL = "/jira/" + issue.Key
 		}
-		items[i].CreatedAt = issue.CreatedAt
-		items[i].UpdatedAt = issue.UpdatedAt
+		if items[i].CreatedAt.IsZero() {
+			items[i].CreatedAt = issue.CreatedAt
+		}
+		if items[i].UpdatedAt.IsZero() {
+			items[i].UpdatedAt = issue.UpdatedAt
+		}
 	}
 	return items
 }

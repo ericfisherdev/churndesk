@@ -100,7 +100,7 @@ func (f *Fetcher) processPR(
 		approvalCount := countApprovals(reviews, f.authenticatedUser)
 		if !userAlreadyReviewed && approvalCount < f.minReviewCount {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:review_needed:%d", pr.Number),
+				ID:         fmt.Sprintf("github:review_needed:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRReviewNeeded,
 				ExternalID: externalID,
@@ -115,7 +115,7 @@ func (f *Fetcher) processPR(
 		}
 		if hasDismissedReview(reviews, f.authenticatedUser) {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:stale_review:%d", pr.Number),
+				ID:         fmt.Sprintf("github:stale_review:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRStaleReview,
 				ExternalID: externalID,
@@ -133,7 +133,7 @@ func (f *Fetcher) processPR(
 	if isOwnPR {
 		if hasChangesRequested(reviews) {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:changes_requested:%d", pr.Number),
+				ID:         fmt.Sprintf("github:changes_requested:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRChangesRequested,
 				ExternalID: externalID,
@@ -148,7 +148,7 @@ func (f *Fetcher) processPR(
 		}
 		if hasCIFailing(checks) {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:ci_failing:%d", pr.Number),
+				ID:         fmt.Sprintf("github:ci_failing:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRCIFailing,
 				ExternalID: externalID,
@@ -164,7 +164,7 @@ func (f *Fetcher) processPR(
 		if lastSyncedAt != nil && hasNewCommentsFrom(comments, *lastSyncedAt, f.authenticatedUser) {
 			latest := latestComment(comments, f.authenticatedUser)
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:comment:%d", pr.Number),
+				ID:         fmt.Sprintf("github:comment:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRNewComment,
 				ExternalID: externalID,
@@ -179,7 +179,7 @@ func (f *Fetcher) processPR(
 		}
 		if !hasChangesRequested(reviews) && countAllApprovals(reviews) >= f.minReviewCount {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("github:approved:%d", pr.Number),
+				ID:         fmt.Sprintf("github:approved:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
 				Type:       domain.ItemTypePRApproved,
 				ExternalID: externalID,

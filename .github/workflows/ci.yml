@@ -20,13 +20,16 @@ jobs:
           go-version-file: go.mod
 
       - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@latest
+        run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
       - name: Install hadolint
         run: |
           curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 \
-            -o /usr/local/bin/hadolint
-          chmod +x /usr/local/bin/hadolint
+            -o /tmp/hadolint
+          curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64.sha256 \
+            -o /tmp/hadolint.sha256
+          echo "$(cat /tmp/hadolint.sha256)  /tmp/hadolint" | sha256sum -c
+          install -m 755 /tmp/hadolint /usr/local/bin/hadolint
 
       - name: Install pre-commit
         run: pip install pre-commit
@@ -58,7 +61,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@latest
+        run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
       - name: Generate templates
         run: CGO_ENABLED=1 templ generate ./internal/web/templates/...

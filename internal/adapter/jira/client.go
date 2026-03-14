@@ -148,32 +148,31 @@ func (c *Client) GetActiveSprintIssues(ctx context.Context, boardID int) ([]*dom
 	if err != nil {
 		return nil, fmt.Errorf("list sprints for board %d: %w", boardID, err)
 	}
-	if len(sprintPage.Values) == 0 {
+	if sprintPage == nil || len(sprintPage.Values) == 0 {
 		return []*domain.JiraIssue{}, nil
 	}
 
-	activeSprint := sprintPage.Values[0]
-
-	// Sprint issues from the agile API return only key+id; fetch each full issue via REST.
 	const pageSize = 100
 	var out []*domain.JiraIssue
-	for startAt := 0; ; startAt += pageSize {
-		issuesPage, _, err := c.agile.Sprint.Issues(ctx, activeSprint.ID, nil, startAt, pageSize)
-		if err != nil {
-			return nil, fmt.Errorf("get issues for sprint %d (board %d, startAt=%d): %w", activeSprint.ID, boardID, startAt, err)
-		}
-		if issuesPage == nil {
-			break
-		}
-		for _, sprintIssue := range issuesPage.Issues {
-			issue, err := c.GetIssue(ctx, sprintIssue.Key)
+	for _, sprint := range sprintPage.Values {
+		for startAt := 0; ; startAt += pageSize {
+			issuesPage, _, err := c.agile.Sprint.Issues(ctx, sprint.ID, nil, startAt, pageSize)
 			if err != nil {
-				return nil, fmt.Errorf("get sprint issue %s: %w", sprintIssue.Key, err)
+				return nil, fmt.Errorf("get issues for sprint %d (board %d, startAt=%d): %w", sprint.ID, boardID, startAt, err)
 			}
-			out = append(out, issue)
-		}
-		if startAt+pageSize >= issuesPage.Total {
-			break
+			if issuesPage == nil {
+				break
+			}
+			for _, sprintIssue := range issuesPage.Issues {
+				issue, err := c.GetIssue(ctx, sprintIssue.Key)
+				if err != nil {
+					return nil, fmt.Errorf("get sprint issue %s: %w", sprintIssue.Key, err)
+				}
+				out = append(out, issue)
+			}
+			if startAt+pageSize >= issuesPage.Total {
+				break
+			}
 		}
 	}
 	return out, nil
@@ -268,6 +267,9 @@ func extractADFText(node *atlassianmodels.CommentNodeScheme) string {
 	if node == nil {
 		return ""
 	}
+	if node.Type == "hardBreak" {
+		return "\n"
+	}
 	if node.Type == "text" {
 		return node.Text
 	}
@@ -275,7 +277,14 @@ func extractADFText(node *atlassianmodels.CommentNodeScheme) string {
 	for _, child := range node.Content {
 		sb.WriteString(extractADFText(child))
 	}
-	return sb.String()
+	result := sb.String()
+	switch node.Type {
+	case "paragraph", "heading", "listItem", "blockquote", "codeBlock":
+		if result != "" && !strings.HasSuffix(result, "\n") {
+			result += "\n"
+		}
+	}
+	return result
 }
 
 // parseJiraTime parses a Jira ISO 8601 timestamp string.

@@ -26,6 +26,8 @@ func NewWorker(fetcher port.Fetcher, items port.ItemStore, integrations port.Int
 // RunOnce executes one sync cycle synchronously. Called by the scheduler's poll loop
 // and by the manual sync handler.
 func (w *Worker) RunOnce(ctx context.Context, integration domain.Integration, spaces []domain.Space) error {
+	syncStartedAt := time.Now().UTC()
+
 	fetched, err := w.fetcher.Fetch(ctx, integration, spaces)
 	if err != nil {
 		return fmt.Errorf("fetch for integration %d: %w", integration.ID, err)
@@ -51,7 +53,7 @@ func (w *Worker) RunOnce(ctx context.Context, integration domain.Integration, sp
 		}
 	}
 
-	if err := w.integrations.UpdateLastSyncedAt(ctx, integration.ID, time.Now()); err != nil {
+	if err := w.integrations.UpdateLastSyncedAt(ctx, integration.ID, syncStartedAt); err != nil {
 		return fmt.Errorf("update last_synced_at for integration %d: %w", integration.ID, err)
 	}
 	return nil

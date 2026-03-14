@@ -1,0 +1,1 @@
+ALTER TABLE integrations ADD COLUMN account_id TEXT NOT NULL DEFAULT ''
