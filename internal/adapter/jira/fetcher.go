@@ -178,7 +178,10 @@ func buildCommentJiraMetadata(base string, c *domain.Comment) string {
 	m["latest_comment"] = c.Body
 	m["latest_comment_author"] = c.Author
 	m["latest_comment_at"] = c.CreatedAt.Format(time.RFC3339)
-	b, _ := json.Marshal(m)
+	b, err := json.Marshal(m)
+	if err != nil {
+		return base
+	}
 	return string(b)
 }
 

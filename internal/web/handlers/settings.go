@@ -224,11 +224,13 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 		if i < len(displayNames) {
 			dn = displayNames[i]
 		}
-		h.integrations.CreatePrerequisite(r.Context(), domain.ReviewPrerequisite{ //nolint:errcheck
+		if err := h.integrations.CreatePrerequisite(r.Context(), domain.ReviewPrerequisite{
 			IntegrationID:  integrationID,
 			GitHubUsername: u,
 			DisplayName:    dn,
-		})
+		}); err != nil {
+			log.Printf("create prerequisite %s for integration %d: %v", u, integrationID, err)
+		}
 	}
 	h.respondSuccess(w)
 }
@@ -375,9 +377,18 @@ func (h *SettingsHandler) buildPageData(ctx context.Context) (templates.Settings
 
 	igs := make([]templates.IntegrationWithSpaces, 0, len(integrations))
 	for _, integration := range integrations {
-		spaces, _ := h.integrations.ListSpaces(ctx, integration.ID)
-		teammates, _ := h.integrations.ListTeammates(ctx, integration.ID)
-		prereqs, _ := h.integrations.ListPrerequisites(ctx, integration.ID)
+		spaces, err := h.integrations.ListSpaces(ctx, integration.ID)
+		if err != nil {
+			log.Printf("buildPageData: list spaces for integration %d: %v", integration.ID, err)
+		}
+		teammates, err := h.integrations.ListTeammates(ctx, integration.ID)
+		if err != nil {
+			log.Printf("buildPageData: list teammates for integration %d: %v", integration.ID, err)
+		}
+		prereqs, err := h.integrations.ListPrerequisites(ctx, integration.ID)
+		if err != nil {
+			log.Printf("buildPageData: list prerequisites for integration %d: %v", integration.ID, err)
+		}
 		igs = append(igs, templates.IntegrationWithSpaces{
 			Integration:   integration,
 			Spaces:        spaces,
