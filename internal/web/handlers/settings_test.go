@@ -47,6 +47,7 @@ func (s *stubSettingsIntegrationStore) CreateSpace(_ context.Context, _ domain.S
 func (s *stubSettingsIntegrationStore) ListSpaces(_ context.Context, _ int) ([]domain.Space, error)   { return s.spaces, nil }
 func (s *stubSettingsIntegrationStore) UpdateSpace(_ context.Context, _ domain.Space) error           { return nil }
 func (s *stubSettingsIntegrationStore) DeleteSpace(_ context.Context, _ int) error                    { return nil }
+func (s *stubSettingsIntegrationStore) ReplaceSpaces(_ context.Context, _ int, _ []domain.Space) error { return nil }
 func (s *stubSettingsIntegrationStore) CreateTeammate(_ context.Context, _ domain.Teammate) error     { return nil }
 func (s *stubSettingsIntegrationStore) ListTeammates(_ context.Context, _ int) ([]domain.Teammate, error) {
 	return s.teammates, nil

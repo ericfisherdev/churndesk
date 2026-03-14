@@ -140,6 +140,31 @@ func (s *integrationStore) DeleteSpace(ctx context.Context, id int) error {
 	return err
 }
 
+// ReplaceSpaces atomically deletes all spaces for the given integration and
+// inserts the provided replacement set. Either all changes commit or none do.
+func (s *integrationStore) ReplaceSpaces(ctx context.Context, integrationID int, spaces []domain.Space) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM spaces WHERE integration_id = ?`, integrationID); err != nil {
+		return fmt.Errorf("delete spaces: %w", err)
+	}
+	for _, sp := range spaces {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO spaces (integration_id, provider, owner, name, board_type, jira_board_id, enabled)
+			 VALUES (?,?,?,?,?,?,?)`,
+			sp.IntegrationID, string(sp.Provider), sp.Owner, sp.Name,
+			nullableStr(sp.BoardType), nullableInt(sp.JiraBoardID), boolToInt(sp.Enabled),
+		); err != nil {
+			return fmt.Errorf("create space: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *integrationStore) CreateTeammate(ctx context.Context, t domain.Teammate) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO teammates (integration_id, github_username, display_name) VALUES (?,?,?)`,

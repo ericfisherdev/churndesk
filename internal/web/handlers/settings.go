@@ -24,6 +24,7 @@ type SettingsIntegrationStore interface {
 	ListSpaces(ctx context.Context, integrationID int) ([]domain.Space, error)
 	UpdateSpace(ctx context.Context, sp domain.Space) error
 	DeleteSpace(ctx context.Context, id int) error
+	ReplaceSpaces(ctx context.Context, integrationID int, spaces []domain.Space) error
 	CreateTeammate(ctx context.Context, t domain.Teammate) error
 	ListTeammates(ctx context.Context, integrationID int) ([]domain.Teammate, error)
 	DeleteTeammate(ctx context.Context, id int) error
@@ -122,7 +123,7 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 	h.respondSuccess(w)
 }
 
-// SaveSpaces replaces all spaces for an integration.
+// SaveSpaces atomically replaces all spaces for an integration.
 func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -130,37 +131,26 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
 
-	spaces, err := h.integrations.ListSpaces(r.Context(), integrationID)
-	if err != nil {
-		log.Printf("list spaces for integration %d: %v", integrationID, err)
-		h.respondError(w, "Failed to load spaces", http.StatusInternalServerError)
-		return
-	}
-	for _, sp := range spaces {
-		if err := h.integrations.DeleteSpace(r.Context(), sp.ID); err != nil {
-			log.Printf("delete space %d: %v", sp.ID, err)
-			h.respondError(w, "Failed to delete space", http.StatusInternalServerError)
-			return
-		}
-	}
-
 	owners := r.Form["owner"]
 	names := r.Form["name"]
-	for i := range owners {
-		if i >= len(names) {
-			break
-		}
-		sp := domain.Space{
+	limit := len(owners)
+	if len(names) < limit {
+		limit = len(names)
+	}
+	spaces := make([]domain.Space, 0, limit)
+	for i := 0; i < limit; i++ {
+		spaces = append(spaces, domain.Space{
 			IntegrationID: integrationID,
 			Owner:         owners[i],
 			Name:          names[i],
 			Enabled:       true,
-		}
-		if _, err := h.integrations.CreateSpace(r.Context(), sp); err != nil {
-			log.Printf("create space: %v", err)
-			h.respondError(w, "Failed to create space", http.StatusInternalServerError)
-			return
-		}
+		})
+	}
+
+	if err := h.integrations.ReplaceSpaces(r.Context(), integrationID, spaces); err != nil {
+		log.Printf("replace spaces for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to save spaces", http.StatusInternalServerError)
+		return
 	}
 	h.respondSuccess(w)
 }

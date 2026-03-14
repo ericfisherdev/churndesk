@@ -41,6 +41,7 @@ type IntegrationStore interface {
 	ListSpaces(ctx context.Context, integrationID int) ([]domain.Space, error)
 	UpdateSpace(ctx context.Context, s domain.Space) error
 	DeleteSpace(ctx context.Context, id int) error
+	ReplaceSpaces(ctx context.Context, integrationID int, spaces []domain.Space) error
 
 	CreateTeammate(ctx context.Context, t domain.Teammate) error
 	ListTeammates(ctx context.Context, integrationID int) ([]domain.Teammate, error)
