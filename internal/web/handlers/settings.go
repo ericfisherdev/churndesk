@@ -102,13 +102,13 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 		integration.ID = id
 		if err := h.integrations.UpdateIntegration(r.Context(), integration); err != nil {
 			log.Printf("update integration: %v", err)
-			h.respondError(w, r, "Failed to update integration")
+			h.respondError(w, "Failed to update integration")
 			return
 		}
 	} else {
 		if _, err := h.integrations.CreateIntegration(r.Context(), integration); err != nil {
 			log.Printf("create integration: %v", err)
-			h.respondError(w, r, "Failed to create integration")
+			h.respondError(w, "Failed to create integration")
 			return
 		}
 	}
@@ -118,7 +118,7 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 			log.Printf("scheduler reload: %v", err)
 		}
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // SaveSpaces replaces all spaces for an integration.
@@ -150,7 +150,7 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 		}
 		h.integrations.CreateSpace(r.Context(), sp) //nolint:errcheck
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // SaveTeammates replaces all teammates for an integration.
@@ -183,7 +183,7 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 			DisplayName:    dn,
 		})
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // SavePrerequisites replaces all review prerequisites for an integration.
@@ -216,7 +216,7 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 			DisplayName:    dn,
 		})
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // SaveWeights updates category weights.
@@ -245,7 +245,7 @@ func (h *SettingsHandler) SaveWeights(w http.ResponseWriter, r *http.Request) {
 			h.settings.SetCategoryWeight(r.Context(), t, w8) //nolint:errcheck
 		}
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // SaveGeneral saves general settings. feed_columns is clamped to [1,3].
@@ -278,14 +278,14 @@ func (h *SettingsHandler) SaveGeneral(w http.ResponseWriter, r *http.Request) {
 			log.Printf("set setting %s: %v", k, err)
 		}
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
 // Rescore triggers an immediate RescoreAll.
 func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 	all, err := h.settings.GetAll(r.Context())
 	if err != nil {
-		h.respondError(w, r, "Failed to load settings")
+		h.respondError(w, "Failed to load settings")
 		return
 	}
 	ageMultiplier, _ := strconv.ParseFloat(all[domain.SettingAgeMultiplier], 64)
@@ -312,19 +312,19 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.rescore.RescoreAll(r.Context(), weights, prereqUsernames, ageMultiplier, maxAgeBoost); err != nil {
 		log.Printf("rescore: %v", err)
-		h.respondError(w, r, "Rescore failed")
+		h.respondError(w, "Rescore failed")
 		return
 	}
-	h.respondSuccess(w, r)
+	h.respondSuccess(w)
 }
 
-func (h *SettingsHandler) respondSuccess(w http.ResponseWriter, r *http.Request) {
+func (h *SettingsHandler) respondSuccess(w http.ResponseWriter) {
 	trigger, _ := json.Marshal(map[string]bool{"settingsSaved": true})
 	w.Header().Set("HX-Trigger", string(trigger))
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *SettingsHandler) respondError(w http.ResponseWriter, r *http.Request, msg string) {
+func (h *SettingsHandler) respondError(w http.ResponseWriter, msg string) {
 	trigger, _ := json.Marshal(map[string]string{"syncError": msg})
 	w.Header().Set("HX-Trigger", string(trigger))
 	w.WriteHeader(http.StatusOK)

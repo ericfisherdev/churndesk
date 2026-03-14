@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -25,7 +26,7 @@ func (s *itemStore) Upsert(ctx context.Context, items []domain.Item) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO items
@@ -43,7 +44,7 @@ func (s *itemStore) Upsert(ctx context.Context, items []domain.Item) error {
 	if err != nil {
 		return fmt.Errorf("prepare upsert: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	now := time.Now().UTC()
 	for _, it := range items {
@@ -79,7 +80,7 @@ func (s *itemStore) ListRanked(ctx context.Context, limit int) ([]domain.Item, e
 	if err != nil {
 		return nil, fmt.Errorf("list ranked: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	return scanItems(rows)
 }
 
@@ -112,7 +113,7 @@ func (s *itemStore) MarkSeenByPR(ctx context.Context, prOwner, prRepo string, pr
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET seen = 1, updated_at = ?
 		 WHERE source = 'github' AND pr_owner = ? AND pr_repo = ? AND external_id = ?`,
-		time.Now().UTC(), prOwner, prRepo, fmt.Sprintf("%d", prNumber),
+		time.Now().UTC(), prOwner, prRepo, strconv.Itoa(prNumber),
 	)
 	return err
 }
@@ -142,7 +143,7 @@ func (s *itemStore) RescoreAll(ctx context.Context, weights map[domain.ItemType]
 	if err != nil {
 		return fmt.Errorf("query items for rescore: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	type row struct {
 		id        string
@@ -153,13 +154,13 @@ func (s *itemStore) RescoreAll(ctx context.Context, weights map[domain.ItemType]
 	var toRescore []row
 	for rows.Next() {
 		var r row
-		if err := rows.Scan(&r.id, &r.itemType, &r.metadata, &r.createdAt); err != nil {
-			return err
+		if scanErr := rows.Scan(&r.id, &r.itemType, &r.metadata, &r.createdAt); scanErr != nil {
+			return scanErr
 		}
 		toRescore = append(toRescore, r)
 	}
-	if err := rows.Err(); err != nil {
-		return err
+	if rowsErr := rows.Err(); rowsErr != nil {
+		return rowsErr
 	}
 
 	prereqSet := make(map[string]struct{}, len(prerequisiteUsernames))
@@ -172,7 +173,7 @@ func (s *itemStore) RescoreAll(ctx context.Context, weights map[domain.ItemType]
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx,
 		`UPDATE items SET base_score = ?, prerequisites_met = ?, age_boost = ?, total_score = ?, updated_at = ? WHERE id = ?`,
@@ -180,7 +181,7 @@ func (s *itemStore) RescoreAll(ctx context.Context, weights map[domain.ItemType]
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, r := range toRescore {
 		baseScore := weights[r.itemType]

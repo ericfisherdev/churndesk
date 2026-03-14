@@ -40,7 +40,7 @@ func (s *settingsStore) GetAll(ctx context.Context) (map[domain.SettingKey]strin
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := map[domain.SettingKey]string{}
 	for rows.Next() {
 		var k, v string
@@ -57,7 +57,7 @@ func (s *settingsStore) GetCategoryWeights(ctx context.Context) ([]domain.Catego
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.CategoryWeight
 	for rows.Next() {
 		var w domain.CategoryWeight
