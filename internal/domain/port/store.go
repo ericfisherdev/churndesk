@@ -51,6 +51,7 @@ type IntegrationStore interface {
 	CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error
 	ListPrerequisites(ctx context.Context, integrationID int) ([]domain.ReviewPrerequisite, error)
 	DeletePrerequisite(ctx context.Context, id int) error
+	ReplacePrerequisites(ctx context.Context, integrationID int, prereqs []domain.ReviewPrerequisite) error
 
 	IsOnboardingComplete(ctx context.Context) (bool, error)
 }

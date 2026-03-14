@@ -33,6 +33,7 @@ type SettingsIntegrationStore interface {
 	CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error
 	ListPrerequisites(ctx context.Context, integrationID int) ([]domain.ReviewPrerequisite, error)
 	DeletePrerequisite(ctx context.Context, id int) error
+	ReplacePrerequisites(ctx context.Context, integrationID int, prereqs []domain.ReviewPrerequisite) error
 	IsOnboardingComplete(ctx context.Context) (bool, error)
 }
 
@@ -72,6 +73,7 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 	data, err := h.buildPageData(r.Context())
 	if err != nil {
 		log.Printf("settings page: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPage("Failed to load settings").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
@@ -103,7 +105,7 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 
 	if idStr := r.FormValue("id"); idStr != "" {
 		id, err := strconv.Atoi(idStr)
-		if err != nil {
+		if err != nil || id <= 0 {
 			h.respondError(w, "Invalid integration ID", http.StatusBadRequest)
 			return
 		}
@@ -140,6 +142,17 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	existing, err := h.integrations.ListSpaces(r.Context(), integrationID)
+	if err != nil {
+		log.Printf("list spaces for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to load spaces", http.StatusInternalServerError)
+		return
+	}
+	existingByKey := make(map[string]domain.Space, len(existing))
+	for _, sp := range existing {
+		existingByKey[sp.Owner+"/"+sp.Name] = sp
+	}
+
 	owners := r.Form["owner"]
 	names := r.Form["name"]
 	limit := len(owners)
@@ -148,12 +161,18 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	spaces := make([]domain.Space, 0, limit)
 	for i := 0; i < limit; i++ {
-		spaces = append(spaces, domain.Space{
+		sp := domain.Space{
 			IntegrationID: integrationID,
 			Owner:         owners[i],
 			Name:          names[i],
 			Enabled:       true,
-		})
+		}
+		if prev, ok := existingByKey[owners[i]+"/"+names[i]]; ok {
+			sp.Provider = prev.Provider
+			sp.BoardType = prev.BoardType
+			sp.JiraBoardID = prev.JiraBoardID
+		}
+		spaces = append(spaces, sp)
 	}
 
 	if err := h.integrations.ReplaceSpaces(r.Context(), integrationID, spaces); err != nil {
@@ -211,19 +230,9 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	existing, err := h.integrations.ListPrerequisites(r.Context(), integrationID)
-	if err != nil {
-		log.Printf("list prerequisites for integration %d: %v", integrationID, err)
-		h.respondError(w, "Failed to load prerequisites", http.StatusInternalServerError)
-		return
-	}
-	for _, p := range existing {
-		if err := h.integrations.DeletePrerequisite(r.Context(), p.ID); err != nil {
-			log.Printf("delete prerequisite %d: %v", p.ID, err)
-		}
-	}
 	usernames := r.Form["github_username"]
 	displayNames := r.Form["display_name"]
+	prereqs := make([]domain.ReviewPrerequisite, 0, len(usernames))
 	for i, u := range usernames {
 		if u == "" {
 			continue
@@ -232,13 +241,16 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 		if i < len(displayNames) {
 			dn = displayNames[i]
 		}
-		if err := h.integrations.CreatePrerequisite(r.Context(), domain.ReviewPrerequisite{
+		prereqs = append(prereqs, domain.ReviewPrerequisite{
 			IntegrationID:  integrationID,
 			GitHubUsername: u,
 			DisplayName:    dn,
-		}); err != nil {
-			log.Printf("create prerequisite %s for integration %d: %v", u, integrationID, err)
-		}
+		})
+	}
+	if err := h.integrations.ReplacePrerequisites(r.Context(), integrationID, prereqs); err != nil {
+		log.Printf("replace prerequisites for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to save prerequisites", http.StatusInternalServerError)
+		return
 	}
 	h.respondSuccess(w)
 }

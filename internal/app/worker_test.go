@@ -91,6 +91,9 @@ func (s *stubIntegrationStore) ListPrerequisites(ctx context.Context, id int) ([
 	return nil, nil
 }
 func (s *stubIntegrationStore) DeletePrerequisite(ctx context.Context, id int) error { return nil }
+func (s *stubIntegrationStore) ReplacePrerequisites(_ context.Context, _ int, _ []domain.ReviewPrerequisite) error {
+	return nil
+}
 func (s *stubIntegrationStore) IsOnboardingComplete(ctx context.Context) (bool, error) {
 	return true, nil
 }
