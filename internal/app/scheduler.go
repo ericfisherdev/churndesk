@@ -85,6 +85,10 @@ func (s *Scheduler) startWorker(parent context.Context, integration domain.Integ
 		spaces, err := s.integrations.ListSpaces(workerCtx, integration.ID)
 		if err != nil {
 			log.Printf("scheduler: list spaces for integration %d: %v", integration.ID, err)
+			cancel()
+			s.mu.Lock()
+			delete(s.cancels, integration.ID)
+			s.mu.Unlock()
 			return
 		}
 		// Initial sync immediately on start

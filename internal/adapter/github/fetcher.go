@@ -300,8 +300,11 @@ func ExtractJiraKeys(title, body, branch string) []string {
 	return keys
 }
 
-// collapseReviewsToLatest returns the most recent review state per reviewer,
-// relying on the GitHub API's chronological ordering (last entry wins).
+// collapseReviewsToLatest returns the most recent review state per reviewer.
+// It relies on the GitHub API returning domain.Review entries in chronological
+// order — the last entry for a given author wins. If that ordering guarantee
+// ever becomes unreliable, add a SubmittedAt timestamp to domain.Review and
+// sort by it before iterating here.
 func collapseReviewsToLatest(reviews []domain.Review) map[string]string {
 	latest := make(map[string]string, len(reviews))
 	for _, r := range reviews {

@@ -676,7 +676,7 @@ func checkBadge(conclusion string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		case "failure", "action_required":
+		case "failure", "action_required", "cancelled", "timed_out", "stale":
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<span style=\"color:var(--red)\">✗</span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

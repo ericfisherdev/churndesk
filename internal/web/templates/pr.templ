@@ -196,7 +196,7 @@ templ checkBadge(conclusion string) {
 	switch conclusion {
 	case "success":
 		<span style="color:var(--green)">✓</span>
-	case "failure", "action_required":
+	case "failure", "action_required", "cancelled", "timed_out", "stale":
 		<span style="color:var(--red)">✗</span>
 	default:
 		<span style="color:var(--muted)">○</span>
