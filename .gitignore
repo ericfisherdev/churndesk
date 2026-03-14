@@ -34,3 +34,4 @@ go.work.sum
 # Local docs (not tracked)
 docs/
 .worktrees/
+/churndesk
