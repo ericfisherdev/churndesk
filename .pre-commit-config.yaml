@@ -12,7 +12,7 @@ repos:
 
   # ── golangci-lint (gofmt + govet + staticcheck + extras) ─────────────────
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.3.0
+    rev: v2.11.3
     hooks:
       - id: golangci-lint
 
