@@ -1,0 +1,137 @@
+package templates
+
+import (
+	"fmt"
+	"html/template"
+
+	"github.com/churndesk/churndesk/internal/domain"
+)
+
+// JiraPageData carries all data needed to render the Jira issue detail page.
+type JiraPageData struct {
+	Issue     *domain.JiraIssue
+	DescHTML  template.HTML
+	Comments  []RenderedComment
+	LinkedPRs []domain.PRRef
+}
+
+// JiraPage renders the full Jira issue detail page.
+templ JiraPage(d JiraPageData) {
+	@Layout(fmt.Sprintf("%s — %s", d.Issue.Key, d.Issue.Summary)) {
+		<div style="max-width:1100px;margin:0 auto;padding:20px 24px">
+			<!-- Header -->
+			<div style="margin-bottom:16px">
+				<a href="/" style="font-size:12px;color:var(--muted);text-decoration:none">← Back to inbox</a>
+				<div style="display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap">
+					<span class="pill pill-muted" style="font-family:'JetBrains Mono',monospace;font-size:12px">{ d.Issue.Key }</span>
+					@issueTypeBadge(d.Issue.IssueType)
+					@jiraStatusBadge(d.Issue.Status)
+				</div>
+				<h1 style="font-size:18px;font-weight:600;margin:8px 0 0">{ d.Issue.Summary }</h1>
+			</div>
+			<!-- Linked PRs bar -->
+			if len(d.LinkedPRs) > 0 {
+				<div style="display:flex;gap:6px;align-items:center;margin-bottom:16px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap">
+					<span style="font-size:12px;color:var(--muted);margin-right:4px">PRs:</span>
+					for _, pr := range d.LinkedPRs {
+						<a href={ templ.SafeURL(fmt.Sprintf("/prs/%s/%s/%d", pr.Owner, pr.Repo, pr.Number)) } class="pill pill-accent" style="font-size:12px">
+							#{ fmt.Sprintf("%d", pr.Number) } { pr.Title }
+						</a>
+					}
+				</div>
+			}
+			<!-- Main content: 2-column layout -->
+			<div style="display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start">
+				<!-- Left: description + comments -->
+				<div>
+					if d.Issue.Description != "" {
+						<div class="prose" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+							@templ.Raw(string(d.DescHTML))
+						</div>
+					}
+					<div id="comment-list">
+						for _, c := range d.Comments {
+							@jiraCommentBlock(c)
+						}
+					</div>
+					<!-- Reply form -->
+					<div style="margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px">
+						<form
+							hx-post={ fmt.Sprintf("/jira/%s/comments", d.Issue.Key) }
+							hx-target="#comment-list"
+							hx-swap="beforeend">
+							<textarea
+								name="body"
+								placeholder="Add a comment…"
+								style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px;resize:vertical"></textarea>
+							<div style="display:flex;justify-content:flex-end;margin-top:8px">
+								<button type="submit" class="btn btn-primary">Comment</button>
+							</div>
+						</form>
+					</div>
+				</div>
+				<!-- Right sidebar: issue metadata -->
+				<div>
+					<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px">
+						<h3 style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px">Details</h3>
+						@jiraMeta("Status",   d.Issue.Status)
+						@jiraMeta("Priority", d.Issue.Priority)
+						@jiraMeta("Type",     d.Issue.IssueType)
+						@jiraMeta("Assignee", d.Issue.Assignee)
+						@jiraMeta("Sprint",   d.Issue.Sprint)
+						if d.Issue.StoryPoints > 0 {
+							@jiraMeta("Points", fmt.Sprintf("%.0f", d.Issue.StoryPoints))
+						}
+						@jiraMeta("Created", d.Issue.CreatedAt.Format("Jan 2, 2006"))
+						@jiraMeta("Updated", d.Issue.UpdatedAt.Format("Jan 2, 2006"))
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ jiraCommentBlock(c RenderedComment) {
+	<div class="comment" style="padding:14px 0;border-top:1px solid var(--border)">
+		<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+			<span style="font-weight:600;font-size:13px">{ c.Author }</span>
+			<span style="color:var(--muted);font-size:12px">{ c.CreatedAt.Format("Jan 2, 2006 15:04") }</span>
+		</div>
+		<div class="prose">@templ.Raw(string(c.BodyHTML))</div>
+	</div>
+}
+
+templ jiraMeta(label, value string) {
+	if value != "" {
+		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px">
+			<span style="color:var(--muted)">{ label }</span>
+			<span>{ value }</span>
+		</div>
+	}
+}
+
+templ issueTypeBadge(issueType string) {
+	switch issueType {
+	case "Bug":
+		<span class="pill pill-red">Bug</span>
+	case "Story":
+		<span class="pill pill-accent">Story</span>
+	case "Task":
+		<span class="pill pill-muted">Task</span>
+	default:
+		<span class="pill pill-muted">{ issueType }</span>
+	}
+}
+
+templ jiraStatusBadge(status string) {
+	switch status {
+	case "Done", "Resolved", "Closed":
+		<span class="pill pill-green">{ status }</span>
+	case "In Progress":
+		<span class="pill pill-accent">In Progress</span>
+	default:
+		<span class="pill pill-muted">{ status }</span>
+	}
+}
+
+var _ = fmt.Sprintf
