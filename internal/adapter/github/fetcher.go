@@ -86,7 +86,7 @@ func (f *Fetcher) processPR(
 		return nil, fmt.Errorf("list comments for PR %d: %w", pr.Number, err)
 	}
 
-	metadata := buildGitHubMetadata(pr, reviews, comments)
+	metadata := buildGitHubMetadata(pr, reviews)
 	prURL := fmt.Sprintf("https://github.com/%s/%s/pull/%d", space.Owner, space.Name, pr.Number)
 	externalID := strconv.Itoa(pr.Number)
 
@@ -198,7 +198,7 @@ func (f *Fetcher) processPR(
 }
 
 // buildGitHubMetadata serializes PR metadata as JSON. Silently returns "{}" on marshal error.
-func buildGitHubMetadata(pr *domain.PRDetail, reviews []domain.Review, _ []domain.Comment) string {
+func buildGitHubMetadata(pr *domain.PRDetail, reviews []domain.Review) string {
 	type reviewJSON struct {
 		Login string `json:"login"`
 		State string `json:"state"`
