@@ -15,6 +15,9 @@ import (
 
 var jiraKeyRegex = regexp.MustCompile(`[A-Z]+-\d+`)
 
+// Ensure Fetcher implements port.Fetcher at compile time.
+var _ port.Fetcher = (*Fetcher)(nil)
+
 // Fetcher implements port.Fetcher for GitHub. It depends on port.GitHubClient,
 // not the concrete adapter, so it can be tested with a mock.
 type Fetcher struct {
