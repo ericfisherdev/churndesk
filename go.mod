@@ -2,7 +2,10 @@ module github.com/churndesk/churndesk
 
 go 1.25.7
 
-require github.com/stretchr/testify v1.11.1
+require (
+	github.com/mattn/go-sqlite3 v1.14.34
+	github.com/stretchr/testify v1.11.1
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
