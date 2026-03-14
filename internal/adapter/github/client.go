@@ -88,7 +88,10 @@ func (c *Client) ListCheckRuns(ctx context.Context, owner, repo, headSHA string)
 
 func (c *Client) PostPRComment(ctx context.Context, owner, repo string, number int, body string) error {
 	_, _, err := c.gh.Issues.CreateComment(ctx, owner, repo, number, &gogithub.IssueComment{Body: gogithub.Ptr(body)})
-	return err
+	if err != nil {
+		return fmt.Errorf("post PR comment on %s/%s#%d: %w", owner, repo, number, err)
+	}
+	return nil
 }
 
 func (c *Client) SubmitReview(ctx context.Context, owner, repo string, number int, verdict, body string) error {
@@ -96,7 +99,10 @@ func (c *Client) SubmitReview(ctx context.Context, owner, repo string, number in
 		Body:  gogithub.Ptr(body),
 		Event: gogithub.Ptr(verdict), // "APPROVE", "REQUEST_CHANGES", "COMMENT"
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("submit review on %s/%s#%d: %w", owner, repo, number, err)
+	}
+	return nil
 }
 
 func (c *Client) RequestReviewers(ctx context.Context, owner, repo string, number int, logins []string) error {
