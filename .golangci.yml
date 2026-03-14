@@ -1,0 +1,32 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose      # HTTP response body leak detection
+    - noctx          # context propagation issues
+    - fatcontext     # context growing in loops
+    - prealloc       # slice preallocation hints
+    - perfsprint     # fmt.Sprintf optimization
+    - gocritic       # style and correctness
+    - misspell       # typos in comments/strings
+    - unconvert      # unnecessary type conversions
+    - unparam        # unused function parameters
+    - exhaustive     # exhaustive switch/map coverage
+
+  settings:
+    govet:
+      enable:
+        - shadow     # variable shadowing
+
+formatters:
+  settings:
+    gofmt:
+      simplify: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

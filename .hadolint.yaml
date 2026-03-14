@@ -1,0 +1,11 @@
+failure-threshold: warning
+
+ignored:
+  - DL3008   # apt-get: no pinned package versions (acceptable for build images)
+  - DL3018   # apk: no pinned versions
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - golang
+  - debian
