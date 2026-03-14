@@ -67,6 +67,9 @@ func (s *Scheduler) startWorker(parent context.Context, integration domain.Integ
 
 	worker := NewWorker(fetcher, s.items, s.integrations)
 	interval := time.Duration(integration.PollIntervalSeconds) * time.Second
+	if interval <= 0 {
+		interval = 60 * time.Second
+	}
 
 	go func() {
 		spaces, err := s.integrations.ListSpaces(workerCtx, integration.ID)
