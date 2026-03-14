@@ -100,7 +100,11 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 	}
 
 	if idStr := r.FormValue("id"); idStr != "" {
-		id, _ := strconv.Atoi(idStr)
+		id, err := strconv.Atoi(idStr)
+		if err != nil {
+			h.respondError(w, "Invalid integration ID", http.StatusBadRequest)
+			return
+		}
 		integration.ID = id
 		if err := h.integrations.UpdateIntegration(r.Context(), integration); err != nil {
 			log.Printf("update integration: %v", err)
@@ -129,7 +133,10 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
+	integrationID, ok := parseIntegrationID(w, r)
+	if !ok {
+		return
+	}
 
 	owners := r.Form["owner"]
 	names := r.Form["name"]
@@ -161,7 +168,10 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
+	integrationID, ok := parseIntegrationID(w, r)
+	if !ok {
+		return
+	}
 
 	existing, err := h.integrations.ListTeammates(r.Context(), integrationID)
 	if err != nil {
@@ -201,7 +211,10 @@ func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
+	integrationID, ok := parseIntegrationID(w, r)
+	if !ok {
+		return
+	}
 
 	existing, err := h.integrations.ListPrerequisites(r.Context(), integrationID)
 	if err != nil {
@@ -258,7 +271,9 @@ func (h *SettingsHandler) SaveWeights(w http.ResponseWriter, r *http.Request) {
 			if w8 > 100 {
 				w8 = 100
 			}
-			h.settings.SetCategoryWeight(r.Context(), t, w8) //nolint:errcheck
+			if err := h.settings.SetCategoryWeight(r.Context(), t, w8); err != nil {
+				log.Printf("set category weight %s=%d: %v", t, w8, err)
+			}
 		}
 	}
 	h.respondSuccess(w)
@@ -304,8 +319,14 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, "Failed to load settings", http.StatusInternalServerError)
 		return
 	}
-	ageMultiplier, _ := strconv.ParseFloat(all[domain.SettingAgeMultiplier], 64)
-	maxAgeBoost, _ := strconv.ParseFloat(all[domain.SettingMaxAgeBoost], 64)
+	ageMultiplier, err := strconv.ParseFloat(all[domain.SettingAgeMultiplier], 64)
+	if err != nil {
+		log.Printf("rescore: missing or invalid age_multiplier setting, age scoring disabled")
+	}
+	maxAgeBoost, err := strconv.ParseFloat(all[domain.SettingMaxAgeBoost], 64)
+	if err != nil {
+		log.Printf("rescore: missing or invalid max_age_boost setting, age scoring disabled")
+	}
 
 	cw, err := h.settings.GetCategoryWeights(r.Context())
 	if err != nil {
@@ -347,6 +368,22 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.respondSuccess(w)
+}
+
+// parseIntegrationID extracts and validates the integration_id form value.
+// It writes a 400 response and returns false when the value is missing or non-numeric.
+func parseIntegrationID(w http.ResponseWriter, r *http.Request) (int, bool) {
+	val := r.FormValue("integration_id")
+	if val == "" {
+		http.Error(w, "missing integration_id", http.StatusBadRequest)
+		return 0, false
+	}
+	id, err := strconv.Atoi(val)
+	if err != nil {
+		http.Error(w, "invalid integration_id", http.StatusBadRequest)
+		return 0, false
+	}
+	return id, true
 }
 
 func (h *SettingsHandler) respondSuccess(w http.ResponseWriter) {
