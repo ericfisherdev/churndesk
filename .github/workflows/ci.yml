@@ -26,9 +26,8 @@ jobs:
         run: |
           curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 \
             -o /tmp/hadolint
-          curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64.sha256 \
-            -o /tmp/hadolint.sha256
-          echo "$(cat /tmp/hadolint.sha256)  /tmp/hadolint" | sha256sum -c
+          EXPECTED=$(curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64.sha256 | awk '{print $1}')
+          echo "${EXPECTED}  /tmp/hadolint" | sha256sum -c
           install -m 755 /tmp/hadolint /usr/local/bin/hadolint
 
       - name: Install pre-commit
