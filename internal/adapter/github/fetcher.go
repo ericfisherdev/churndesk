@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"sync"
@@ -81,6 +82,10 @@ func (f *Fetcher) Fetch(ctx context.Context, integration domain.Integration, spa
 			return nil, fmt.Errorf("list PRs for %s/%s: %w", space.Owner, space.Name, err)
 		}
 		for _, pr := range prs {
+			if pr == nil {
+				log.Printf("nil PR entry returned for %s/%s, skipping", space.Owner, space.Name)
+				continue
+			}
 			fetched, err := f.processPR(ctx, pr, space, teammateSet, minReviewCount, integration.LastSyncedAt)
 			if err != nil {
 				return nil, err

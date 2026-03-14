@@ -105,7 +105,7 @@ func (h *PRHandler) Page(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := templates.PRPageData{
-		PR:                pr,
+		PR:                *pr,
 		BodyHTML:          bodyHTML,
 		Comments:          renderComments(comments),
 		Reviews:           reviews,

@@ -24,7 +24,7 @@ type RenderedComment struct {
 
 // PRPageData carries all data needed to render the PR detail page.
 type PRPageData struct {
-	PR                *domain.PRDetail
+	PR                domain.PRDetail
 	BodyHTML          template.HTML
 	Comments          []RenderedComment
 	Reviews           []domain.Review
@@ -825,7 +825,10 @@ func allChecksPassing(checks []domain.CheckRun) bool {
 		return false
 	}
 	for _, c := range checks {
-		if c.Conclusion != "success" {
+		switch c.Conclusion {
+		case "success", "neutral", "skipped":
+			// non-failing completed conclusions
+		default:
 			return false
 		}
 	}
