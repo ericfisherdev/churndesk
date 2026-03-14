@@ -9,8 +9,8 @@ templ Layout(title string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title } — Churndesk</title>
 			<link rel="stylesheet" href="/static/style.css"/>
-			<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-			<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+			<script src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
 			<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 			<script src="/static/app.js" defer></script>
 		</head>
@@ -23,7 +23,8 @@ templ Layout(title string) {
 						class="btn"
 						hx-post="/sync"
 						hx-swap="none"
-						title="Sync now">
+						title="Sync now"
+						aria-label="Sync now">
 						↻
 					</button>
 					<a href="/settings" class="btn">Settings</a>

@@ -13,6 +13,7 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -65,7 +66,7 @@ func TypePill(t domain.ItemType) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(typeLabel(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 14, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 15, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -109,7 +110,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(prOwner)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 20, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 21, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -122,7 +123,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(prRepo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 20, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 21, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -171,7 +172,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(author)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 30, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 31, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -184,7 +185,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(createdAt.Format("Jan 2, 2006 15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 31, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 32, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -235,7 +236,7 @@ func ErrorPartial(message string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 40, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 41, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -344,26 +345,34 @@ func relativeTime(t time.Time) string {
 	}
 }
 
-// navigateToItem returns a JS expression for onclick navigation.
-// item.URL is validated to contain only safe characters before interpolation.
-// Internal paths (starting with /) use navigateTo for GSAP animation; external URLs open in place.
-func navigateToItem(item domain.Item) string {
-	url := sanitizeURL(item.URL)
-	return fmt.Sprintf("navigateTo('%s')", url)
+// navigateToItem is a templ script component that calls the global navigateTo
+// function (defined in app.js) with the item's sanitized URL. Using a script
+// block ensures templ applies its safe JSON encoding for the string argument.
+func navigateToItem(url string) templ.ComponentScript {
+	return templ.ComponentScript{
+		Name: `__templ_navigateToItem_9540`,
+		Function: `function __templ_navigateToItem_9540(url){navigateTo(url)
+}`,
+		Call:       templ.SafeScript(`__templ_navigateToItem_9540`, url),
+		CallInline: templ.SafeScriptInline(`__templ_navigateToItem_9540`, url),
+	}
 }
 
 // sanitizeURL strips characters that could break a JS single-quoted string.
-// Only alphanumeric, /, -, _, ., :, #, and ? are allowed.
+// Allowed characters follow RFC 3986 unreserved + reserved sets, minus single-quote and backslash.
 func sanitizeURL(url string) string {
-	var out []byte
-	for i := 0; i < len(url); i++ {
-		c := url[i]
+	var buf strings.Builder
+	for _, c := range url {
+		// keep only safe URL characters
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '/' || c == '-' || c == '_' || c == '.' || c == ':' || c == '#' || c == '?' || c == '=' {
-			out = append(out, c)
+			c == '-' || c == '_' || c == '.' || c == '~' || c == ':' || c == '/' ||
+			c == '?' || c == '#' || c == '[' || c == ']' || c == '@' ||
+			c == '!' || c == '$' || c == '&' || c == '\'' || c == '(' || c == ')' ||
+			c == '*' || c == '+' || c == ',' || c == ';' || c == '=' || c == '%' {
+			buf.WriteRune(c)
 		}
 	}
-	return string(out)
+	return buf.String()
 }
 
 func extractLatestComment(metadata string) string {
@@ -391,8 +400,9 @@ func extractLatestComment(metadata string) string {
 		return ""
 	}
 	comment := metadata[start:end]
-	if len(comment) > 120 {
-		return comment[:120] + "…"
+	runes := []rune(comment)
+	if len(runes) > 120 {
+		comment = string(runes[:120]) + "…"
 	}
 	return comment
 }

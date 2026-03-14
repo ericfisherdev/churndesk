@@ -4,6 +4,7 @@ package templates
 import (
 	"fmt"
 	"html/template"
+	"strings"
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -136,26 +137,28 @@ func relativeTime(t time.Time) string {
 	}
 }
 
-// navigateToItem returns a JS expression for onclick navigation.
-// item.URL is validated to contain only safe characters before interpolation.
-// Internal paths (starting with /) use navigateTo for GSAP animation; external URLs open in place.
-func navigateToItem(item domain.Item) string {
-	url := sanitizeURL(item.URL)
-	return fmt.Sprintf("navigateTo('%s')", url)
+// navigateToItem is a templ script component that calls the global navigateTo
+// function (defined in app.js) with the item's sanitized URL. Using a script
+// block ensures templ applies its safe JSON encoding for the string argument.
+script navigateToItem(url string) {
+	navigateTo(url)
 }
 
 // sanitizeURL strips characters that could break a JS single-quoted string.
-// Only alphanumeric, /, -, _, ., :, #, and ? are allowed.
+// Allowed characters follow RFC 3986 unreserved + reserved sets, minus single-quote and backslash.
 func sanitizeURL(url string) string {
-	var out []byte
-	for i := 0; i < len(url); i++ {
-		c := url[i]
+	var buf strings.Builder
+	for _, c := range url {
+		// keep only safe URL characters
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '/' || c == '-' || c == '_' || c == '.' || c == ':' || c == '#' || c == '?' || c == '=' {
-			out = append(out, c)
+			c == '-' || c == '_' || c == '.' || c == '~' || c == ':' || c == '/' ||
+			c == '?' || c == '#' || c == '[' || c == ']' || c == '@' ||
+			c == '!' || c == '$' || c == '&' || c == '\'' || c == '(' || c == ')' ||
+			c == '*' || c == '+' || c == ',' || c == ';' || c == '=' || c == '%' {
+			buf.WriteRune(c)
 		}
 	}
-	return string(out)
+	return buf.String()
 }
 
 func extractLatestComment(metadata string) string {
@@ -183,8 +186,9 @@ func extractLatestComment(metadata string) string {
 		return ""
 	}
 	comment := metadata[start:end]
-	if len(comment) > 120 {
-		return comment[:120] + "…"
+	runes := []rune(comment)
+	if len(runes) > 120 {
+		comment = string(runes[:120]) + "…"
 	}
 	return comment
 }
