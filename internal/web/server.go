@@ -37,13 +37,13 @@ func NewServer(
 
 	// PR view
 	mux.HandleFunc("GET /prs/{owner}/{repo}/{number}", gate(http.HandlerFunc(pr.Page)).ServeHTTP)
-	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/comments", pr.PostComment)
-	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/reviews", pr.SubmitReview)
-	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/reviewers", pr.RequestReviewers)
+	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/comments", gate(http.HandlerFunc(pr.PostComment)).ServeHTTP)
+	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/reviews", gate(http.HandlerFunc(pr.SubmitReview)).ServeHTTP)
+	mux.HandleFunc("POST /prs/{owner}/{repo}/{number}/reviewers", gate(http.HandlerFunc(pr.RequestReviewers)).ServeHTTP)
 
 	// Jira view
 	mux.HandleFunc("GET /jira/{key}", gate(http.HandlerFunc(jira.Page)).ServeHTTP)
-	mux.HandleFunc("POST /jira/{key}/comments", jira.PostComment)
+	mux.HandleFunc("POST /jira/{key}/comments", gate(http.HandlerFunc(jira.PostComment)).ServeHTTP)
 
 	// Settings
 	mux.HandleFunc("GET /settings", settings.Page)

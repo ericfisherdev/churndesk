@@ -43,12 +43,13 @@ templ feedGrid(items []domain.Item, columns int) {
 
 // FeedItem renders a single feed card.
 templ FeedItem(item domain.Item) {
-	<div
+	<a
+		href={ templ.SafeURL(sanitizeURL(item.URL)) }
 		class={ "feed-item", itemTypeClass(item.Type), unseenClass(item.Seen) }
-		onclick={ navigateToItem(sanitizeURL(item.URL)) }
 		hx-post={ "/items/" + item.ID + "/seen" }
 		hx-trigger="click"
-		hx-swap="none">
+		hx-swap="none"
+		style="display:block;text-decoration:none;color:inherit">
 		<div class="flex gap-8 items-center" style="flex-wrap:wrap">
 			@TypePill(item.Type)
 			@SourcePill(item.Source, item.PROwner, item.PRRepo)
@@ -73,5 +74,5 @@ templ FeedItem(item domain.Item) {
 			aria-label="Dismiss">
 			⊗
 		</button>
-	</div>
+	</a>
 }

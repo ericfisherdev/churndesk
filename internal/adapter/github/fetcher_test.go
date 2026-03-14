@@ -74,7 +74,7 @@ func TestGitHubFetcher_PRReviewNeeded(t *testing.T) {
 		}
 	}
 	require.Len(t, reviewNeeded, 1)
-	assert.Equal(t, "github:review_needed:42", reviewNeeded[0].ID)
+	assert.Equal(t, "github:review_needed:myorg/myrepo:42", reviewNeeded[0].ID)
 	assert.Equal(t, "42", reviewNeeded[0].ExternalID)
 	assert.Equal(t, "myorg", reviewNeeded[0].PROwner)
 	assert.Equal(t, "myrepo", reviewNeeded[0].PRRepo)
@@ -107,7 +107,7 @@ func TestGitHubFetcher_OwnPRWithCIFailing(t *testing.T) {
 		}
 	}
 	require.Len(t, ciFailing, 1)
-	assert.Equal(t, "github:ci_failing:99", ciFailing[0].ID)
+	assert.Equal(t, "github:ci_failing:myorg/myrepo:99", ciFailing[0].ID)
 }
 
 func TestGitHubFetcher_SkipsOwnPRsForReviewNeeded(t *testing.T) {
@@ -165,7 +165,7 @@ func TestGitHubFetcher_PRNewComment_ExcludesSelfAuthored(t *testing.T) {
 		}
 	}
 	require.Len(t, newComments, 1, "should have exactly one pr_new_comment item")
-	assert.Equal(t, "github:comment:7", newComments[0].ID)
+	assert.Equal(t, "github:comment:myorg/myrepo:7", newComments[0].ID)
 }
 
 func TestGitHubFetcher_PRNewComment_SuppressedOnFirstSync(t *testing.T) {

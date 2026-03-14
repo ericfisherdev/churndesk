@@ -55,17 +55,24 @@ func (c *Client) ListPRComments(ctx context.Context, owner, repo string, number 
 }
 
 func (c *Client) ListPRReviews(ctx context.Context, owner, repo string, number int) ([]domain.Review, error) {
-	reviews, _, err := c.gh.PullRequests.ListReviews(ctx, owner, repo, number, nil)
-	if err != nil {
-		return nil, fmt.Errorf("list PR reviews: %w", err)
-	}
-	out := make([]domain.Review, 0, len(reviews))
-	for _, r := range reviews {
-		out = append(out, domain.Review{
-			ID:     r.GetID(),
-			Author: r.GetUser().GetLogin(),
-			State:  r.GetState(),
-		})
+	var out []domain.Review
+	opts := &gogithub.ListOptions{PerPage: 100}
+	for {
+		reviews, resp, err := c.gh.PullRequests.ListReviews(ctx, owner, repo, number, opts)
+		if err != nil {
+			return nil, fmt.Errorf("list PR reviews: %w", err)
+		}
+		for _, r := range reviews {
+			out = append(out, domain.Review{
+				ID:     r.GetID(),
+				Author: r.GetUser().GetLogin(),
+				State:  r.GetState(),
+			})
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 	return out, nil
 }
@@ -145,6 +152,10 @@ func (c *Client) ListPRsForRepo(ctx context.Context, owner, repo string) ([]*dom
 }
 
 func prToDomain(pr *gogithub.PullRequest, owner, repo string) *domain.PRDetail {
+	state := pr.GetState()
+	if pr.GetMerged() {
+		state = "merged"
+	}
 	return &domain.PRDetail{
 		Number:       pr.GetNumber(),
 		Title:        pr.GetTitle(),
@@ -157,7 +168,7 @@ func prToDomain(pr *gogithub.PullRequest, owner, repo string) *domain.PRDetail {
 		Additions:    pr.GetAdditions(),
 		Deletions:    pr.GetDeletions(),
 		FilesChanged: pr.GetChangedFiles(),
-		State:        pr.GetState(),
+		State:        state,
 		Body:         pr.GetBody(),
 		CreatedAt:    pr.GetCreatedAt().Time,
 		UpdatedAt:    pr.GetUpdatedAt().Time,

@@ -17,7 +17,7 @@ import (
 var migrationFiles embed.FS
 
 func Open(path string) (*sql.DB, error) {
-	dsn := path + "?_foreign_keys=on&_loc=UTC"
+	dsn := path + "?_foreign_keys=on&_loc=UTC&_busy_timeout=5000"
 	conn, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
@@ -67,25 +67,36 @@ func runMigrations(ctx context.Context, conn *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", e.Name(), err)
 		}
-		if err := execStatements(ctx, conn, string(content)); err != nil {
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin tx for migration %s: %w", version, err)
+		}
+		if err := execStatements(ctx, tx, string(content)); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("exec migration %s: %w", e.Name(), err)
 		}
-		if _, err := conn.ExecContext(ctx,
-			`INSERT INTO schema_migrations (version) VALUES (?)`, version,
-		); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO schema_migrations (version) VALUES (?)`, version); err != nil {
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %s: %w", version, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit migration %s: %w", version, err)
 		}
 	}
 	return nil
 }
 
-func execStatements(ctx context.Context, conn *sql.DB, sql string) error {
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func execStatements(ctx context.Context, ex execer, sql string) error {
 	for _, stmt := range strings.Split(sql, ";") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
 		}
-		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+		if _, err := ex.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("statement %q: %w", truncate(stmt, 60), err)
 		}
 	}

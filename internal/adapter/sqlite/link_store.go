@@ -18,26 +18,39 @@ func NewLinkStore(db *sql.DB) port.LinkStore {
 }
 
 func (s *linkStore) UpsertPRJiraLinks(ctx context.Context, prOwner, prRepo string, prNumber int, prTitle string, jiraKeys []string) error {
-	if len(jiraKeys) == 0 {
-		return nil
-	}
-	stmt, err := s.db.PrepareContext(ctx, `
-		INSERT INTO pr_jira_links (pr_owner, pr_repo, pr_number, pr_title, jira_issue_key)
-		VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(pr_owner, pr_repo, pr_number, jira_issue_key)
-		DO UPDATE SET pr_title = excluded.pr_title
-	`)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("prepare link upsert: %w", err)
+		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() { _ = stmt.Close() }()
+	defer func() { _ = tx.Rollback() }()
 
-	for _, key := range jiraKeys {
-		if _, err := stmt.ExecContext(ctx, prOwner, prRepo, prNumber, prTitle, key); err != nil {
-			return fmt.Errorf("insert link %s: %w", key, err)
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM pr_jira_links WHERE pr_owner=? AND pr_repo=? AND pr_number=?`,
+		prOwner, prRepo, prNumber,
+	); err != nil {
+		return fmt.Errorf("delete existing links: %w", err)
+	}
+
+	if len(jiraKeys) > 0 {
+		stmt, err := tx.PrepareContext(ctx, `
+			INSERT INTO pr_jira_links (pr_owner, pr_repo, pr_number, pr_title, jira_issue_key)
+			VALUES (?, ?, ?, ?, ?)
+			ON CONFLICT(pr_owner, pr_repo, pr_number, jira_issue_key)
+			DO UPDATE SET pr_title = excluded.pr_title
+		`)
+		if err != nil {
+			return fmt.Errorf("prepare link insert: %w", err)
+		}
+		defer func() { _ = stmt.Close() }()
+
+		for _, key := range jiraKeys {
+			if _, err := stmt.ExecContext(ctx, prOwner, prRepo, prNumber, prTitle, key); err != nil {
+				return fmt.Errorf("insert link %s: %w", key, err)
+			}
 		}
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 func (s *linkStore) GetJiraKeysForPR(ctx context.Context, prOwner, prRepo string, prNumber int) ([]string, error) {

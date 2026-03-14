@@ -20,9 +20,9 @@ func NewIntegrationStore(db *sql.DB) port.IntegrationStore {
 
 func (s *integrationStore) CreateIntegration(ctx context.Context, i domain.Integration) (int, error) {
 	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO integrations (provider, access_token, base_url, username, poll_interval_seconds, enabled)
-		 VALUES (?,?,?,?,?,?)`,
-		string(i.Provider), i.AccessToken, i.BaseURL, i.Username, i.PollIntervalSeconds, boolToInt(i.Enabled),
+		`INSERT INTO integrations (provider, access_token, base_url, username, account_id, poll_interval_seconds, enabled)
+		 VALUES (?,?,?,?,?,?,?)`,
+		string(i.Provider), i.AccessToken, i.BaseURL, i.Username, i.AccountID, i.PollIntervalSeconds, boolToInt(i.Enabled),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("create integration: %w", err)
@@ -33,7 +33,7 @@ func (s *integrationStore) CreateIntegration(ctx context.Context, i domain.Integ
 
 func (s *integrationStore) GetIntegration(ctx context.Context, id int) (*domain.Integration, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, provider, access_token, base_url, username, poll_interval_seconds, last_synced_at, enabled
+		`SELECT id, provider, access_token, base_url, username, account_id, poll_interval_seconds, last_synced_at, enabled
 		 FROM integrations WHERE id = ?`, id,
 	)
 	return scanIntegration(row)
@@ -41,9 +41,9 @@ func (s *integrationStore) GetIntegration(ctx context.Context, id int) (*domain.
 
 func (s *integrationStore) UpdateIntegration(ctx context.Context, i domain.Integration) error {
 	_, err := s.db.ExecContext(ctx,
-		`UPDATE integrations SET provider=?, access_token=?, base_url=?, username=?,
+		`UPDATE integrations SET provider=?, access_token=?, base_url=?, username=?, account_id=?,
 		 poll_interval_seconds=?, enabled=? WHERE id=?`,
-		string(i.Provider), i.AccessToken, i.BaseURL, i.Username,
+		string(i.Provider), i.AccessToken, i.BaseURL, i.Username, i.AccountID,
 		i.PollIntervalSeconds, boolToInt(i.Enabled), i.ID,
 	)
 	return err
@@ -56,7 +56,7 @@ func (s *integrationStore) DeleteIntegration(ctx context.Context, id int) error 
 
 func (s *integrationStore) ListIntegrations(ctx context.Context) ([]domain.Integration, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, provider, access_token, base_url, username, poll_interval_seconds, last_synced_at, enabled
+		`SELECT id, provider, access_token, base_url, username, account_id, poll_interval_seconds, last_synced_at, enabled
 		 FROM integrations ORDER BY id`,
 	)
 	if err != nil {
@@ -218,7 +218,7 @@ func scanIntegration(row interface{ Scan(...any) error }) (*domain.Integration, 
 	var provider string
 	var lastSynced sql.NullTime
 	var enabled int
-	if err := row.Scan(&i.ID, &provider, &i.AccessToken, &i.BaseURL, &i.Username,
+	if err := row.Scan(&i.ID, &provider, &i.AccessToken, &i.BaseURL, &i.Username, &i.AccountID,
 		&i.PollIntervalSeconds, &lastSynced, &enabled); err != nil {
 		return nil, fmt.Errorf("scan integration: %w", err)
 	}

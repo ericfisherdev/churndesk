@@ -81,6 +81,7 @@ templ PRPage(d PRPageData) {
 							hx-swap="beforeend">
 							<textarea
 								name="body"
+								aria-label="Leave a comment"
 								placeholder="Leave a comment…"
 								style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px;resize:vertical"></textarea>
 							<div style="display:flex;justify-content:flex-end;margin-top:8px">
@@ -98,7 +99,7 @@ templ PRPage(d PRPageData) {
 									<label><input type="radio" name="verdict" value="REQUEST_CHANGES"/> Request changes</label>
 									<label><input type="radio" name="verdict" value="COMMENT"/> Comment</label>
 								</div>
-								<textarea name="body" placeholder="Review comment (optional)" style="width:100%;min-height:60px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px"></textarea>
+								<textarea name="body" aria-label="Review comment" placeholder="Review comment (optional)" style="width:100%;min-height:60px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px"></textarea>
 								<div style="display:flex;justify-content:flex-end;margin-top:8px">
 									<button type="submit" class="btn btn-primary">Submit review</button>
 								</div>

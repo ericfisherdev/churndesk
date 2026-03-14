@@ -4,6 +4,7 @@ package templates
 import (
 	"fmt"
 	"html/template"
+	"net/url"
 	"strings"
 	"time"
 
@@ -142,16 +143,31 @@ script navigateToItem(url string) {
 	navigateTo(url)
 }
 
-// sanitizeURL strips characters that could break a JS single-quoted string.
+// sanitizeURL validates the URL scheme and strips characters that could break HTML attributes.
 // Allowed characters follow RFC 3986 unreserved + reserved sets, minus single-quote and backslash.
-func sanitizeURL(url string) string {
+// Non-whitelisted schemes (e.g. javascript:) are rejected entirely.
+func sanitizeURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+	// Reject non-whitelisted schemes
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	switch scheme {
+	case "", "http", "https", "mailto", "tel":
+		// allowed
+	default:
+		return ""
+	}
 	var buf strings.Builder
-	for _, c := range url {
-		// keep only safe URL characters
+	for _, c := range rawURL {
 		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
 			c == '-' || c == '_' || c == '.' || c == '~' || c == ':' || c == '/' ||
 			c == '?' || c == '#' || c == '[' || c == ']' || c == '@' ||
-			c == '!' || c == '$' || c == '&' || c == '\'' || c == '(' || c == ')' ||
+			c == '!' || c == '$' || c == '&' || c == '(' || c == ')' ||
 			c == '*' || c == '+' || c == ',' || c == ';' || c == '=' || c == '%' {
 			buf.WriteRune(c)
 		}

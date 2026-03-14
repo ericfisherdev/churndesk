@@ -61,35 +61,35 @@ func (h *PRHandler) Page(w http.ResponseWriter, r *http.Request) {
 	repo := r.PathValue("repo")
 	number, err := strconv.Atoi(r.PathValue("number"))
 	if err != nil {
-		h.renderError(w, r, "Invalid PR number")
+		h.renderError(w, r, http.StatusBadRequest, "Invalid PR number")
 		return
 	}
 
 	pr, err := h.gh.GetPR(r.Context(), owner, repo, number)
 	if err != nil {
 		log.Printf("get PR %s/%s#%d: %v", owner, repo, number, err)
-		h.renderError(w, r, "Failed to load PR from GitHub")
+		h.renderError(w, r, http.StatusBadGateway, "Failed to load PR from GitHub")
 		return
 	}
 
 	comments, err := h.gh.ListPRComments(r.Context(), owner, repo, number)
 	if err != nil {
 		log.Printf("list PR comments: %v", err)
-		h.renderError(w, r, "Failed to load PR comments")
+		h.renderError(w, r, http.StatusBadGateway, "Failed to load PR comments")
 		return
 	}
 
 	reviews, err := h.gh.ListPRReviews(r.Context(), owner, repo, number)
 	if err != nil {
 		log.Printf("list PR reviews: %v", err)
-		h.renderError(w, r, "Failed to load PR reviews")
+		h.renderError(w, r, http.StatusBadGateway, "Failed to load PR reviews")
 		return
 	}
 
 	checks, err := h.gh.ListCheckRuns(r.Context(), owner, repo, pr.HeadSHA)
 	if err != nil {
 		log.Printf("list check runs: %v", err)
-		h.renderError(w, r, "Failed to load CI checks")
+		h.renderError(w, r, http.StatusBadGateway, "Failed to load CI checks")
 		return
 	}
 
@@ -145,7 +145,12 @@ func (h *PRHandler) PostComment(w http.ResponseWriter, r *http.Request) {
 func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 	owner := r.PathValue("owner")
 	repo := r.PathValue("repo")
-	number, _ := strconv.Atoi(r.PathValue("number"))
+	number, err := strconv.Atoi(r.PathValue("number"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		templates.ErrorPartial("Invalid PR number").Render(r.Context(), w) //nolint:errcheck
+		return
+	}
 
 	if err := h.gh.SubmitReview(r.Context(), owner, repo, number, r.FormValue("verdict"), r.FormValue("body")); err != nil {
 		log.Printf("submit review: %v", err)
@@ -159,7 +164,11 @@ func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 func (h *PRHandler) RequestReviewers(w http.ResponseWriter, r *http.Request) {
 	owner := r.PathValue("owner")
 	repo := r.PathValue("repo")
-	number, _ := strconv.Atoi(r.PathValue("number"))
+	number, err := strconv.Atoi(r.PathValue("number"))
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -174,7 +183,8 @@ func (h *PRHandler) RequestReviewers(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *PRHandler) renderError(w http.ResponseWriter, r *http.Request, msg string) {
+func (h *PRHandler) renderError(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	w.WriteHeader(status)
 	templates.ErrorPage(msg).Render(r.Context(), w) //nolint:errcheck
 }
 

@@ -93,6 +93,7 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 		AccessToken:         r.FormValue("access_token"),
 		BaseURL:             r.FormValue("base_url"),
 		Username:            r.FormValue("username"),
+		AccountID:           r.FormValue("account_id"),
 		PollIntervalSeconds: pollInterval,
 		Enabled:             true,
 	}
@@ -129,10 +130,17 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	integrationID, _ := strconv.Atoi(r.FormValue("integration_id"))
 
-	spaces, _ := h.integrations.ListSpaces(r.Context(), integrationID)
+	spaces, err := h.integrations.ListSpaces(r.Context(), integrationID)
+	if err != nil {
+		log.Printf("list spaces for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to load spaces")
+		return
+	}
 	for _, sp := range spaces {
 		if err := h.integrations.DeleteSpace(r.Context(), sp.ID); err != nil {
 			log.Printf("delete space %d: %v", sp.ID, err)
+			h.respondError(w, "Failed to delete space")
+			return
 		}
 	}
 
@@ -148,7 +156,11 @@ func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request) {
 			Name:          names[i],
 			Enabled:       true,
 		}
-		h.integrations.CreateSpace(r.Context(), sp) //nolint:errcheck
+		if _, err := h.integrations.CreateSpace(r.Context(), sp); err != nil {
+			log.Printf("create space: %v", err)
+			h.respondError(w, "Failed to create space")
+			return
+		}
 	}
 	h.respondSuccess(w)
 }
@@ -291,16 +303,31 @@ func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request) {
 	ageMultiplier, _ := strconv.ParseFloat(all[domain.SettingAgeMultiplier], 64)
 	maxAgeBoost, _ := strconv.ParseFloat(all[domain.SettingMaxAgeBoost], 64)
 
-	cw, _ := h.settings.GetCategoryWeights(r.Context())
+	cw, err := h.settings.GetCategoryWeights(r.Context())
+	if err != nil {
+		log.Printf("get category weights: %v", err)
+		h.respondError(w, "Failed to load category weights")
+		return
+	}
 	weights := make(map[domain.ItemType]int, len(cw))
 	for _, w8 := range cw {
 		weights[w8.ItemType] = w8.Weight
 	}
 
-	integrations, _ := h.integrations.ListIntegrations(r.Context())
+	integrations, err := h.integrations.ListIntegrations(r.Context())
+	if err != nil {
+		log.Printf("list integrations: %v", err)
+		h.respondError(w, "Failed to load integrations")
+		return
+	}
 	prereqSet := map[string]struct{}{}
 	for _, ig := range integrations {
-		prereqs, _ := h.integrations.ListPrerequisites(r.Context(), ig.ID)
+		prereqs, err := h.integrations.ListPrerequisites(r.Context(), ig.ID)
+		if err != nil {
+			log.Printf("list prerequisites for integration %d: %v", ig.ID, err)
+			h.respondError(w, "Failed to load prerequisites")
+			return
+		}
 		for _, p := range prereqs {
 			prereqSet[p.GitHubUsername] = struct{}{}
 		}

@@ -48,6 +48,7 @@ func (h *JiraHandler) Page(w http.ResponseWriter, r *http.Request) {
 	issue, err := h.jira.GetIssue(r.Context(), key)
 	if err != nil || issue == nil {
 		log.Printf("get Jira issue %s: %v", key, err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPage("Failed to load Jira issue").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
@@ -55,6 +56,7 @@ func (h *JiraHandler) Page(w http.ResponseWriter, r *http.Request) {
 	comments, err := h.jira.ListIssueComments(r.Context(), key)
 	if err != nil {
 		log.Printf("list Jira comments for %s: %v", key, err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPage("Failed to load comments").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
@@ -82,12 +84,14 @@ func (h *JiraHandler) PostComment(w http.ResponseWriter, r *http.Request) {
 	key := r.PathValue("key")
 	body := r.FormValue("body")
 	if body == "" {
+		w.WriteHeader(http.StatusBadRequest)
 		templates.ErrorPartial("Comment body required").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
 
 	if err := h.jira.PostComment(r.Context(), key, body); err != nil {
 		log.Printf("post Jira comment on %s: %v", key, err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPartial("Failed to post comment").Render(r.Context(), w) //nolint:errcheck
 		return
 	}

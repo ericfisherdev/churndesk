@@ -16,6 +16,7 @@ type Integration struct {
 	AccessToken         string
 	BaseURL             string
 	Username            string
+	AccountID           string
 	PollIntervalSeconds int
 	LastSyncedAt        *time.Time
 	Enabled             bool

@@ -35,11 +35,14 @@ func (s *itemStore) Upsert(ctx context.Context, items []domain.Item) error {
 			 seen, created_at, updated_at)
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
-			title       = excluded.title,
-			url         = excluded.url,
-			metadata    = excluded.metadata,
-			total_score = excluded.total_score,
-			updated_at  = excluded.updated_at
+			title             = excluded.title,
+			url               = excluded.url,
+			metadata          = excluded.metadata,
+			base_score        = excluded.base_score,
+			age_boost         = excluded.age_boost,
+			prerequisites_met = excluded.prerequisites_met,
+			total_score       = excluded.total_score,
+			updated_at        = excluded.updated_at
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare upsert: %w", err)
