@@ -1,0 +1,12 @@
+services:
+  churndesk:
+    image: churndesk/churndesk:latest
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      - CHURNDESK_DB_PATH=/data/churndesk.db
+      - CHURNDESK_PORT=8080
+    restart: unless-stopped
