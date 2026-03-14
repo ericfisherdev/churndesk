@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	goatlassian "github.com/ctreminiom/go-atlassian/jira/agile"
@@ -23,20 +24,19 @@ type Client struct {
 }
 
 // NewClient constructs a Jira adapter using basic auth (email + API token).
-// Returns *Client which satisfies port.JiraClient.
-func NewClient(baseURL, email, token, accountID string) *Client {
+// Returns an error if baseURL is invalid.
+func NewClient(baseURL, email, token, accountID string) (*Client, error) {
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 
 	rest, err := jirav3.New(httpClient, baseURL)
 	if err != nil {
-		// Construction failure is a programmer error (invalid URL); panic to surface immediately.
-		panic(fmt.Sprintf("jira adapter: failed to create REST v3 client: %v", err))
+		return nil, fmt.Errorf("jira adapter: create REST v3 client: %w", err)
 	}
 	rest.Auth.SetBasicAuth(email, token)
 
 	agile, err := goatlassian.New(httpClient, baseURL)
 	if err != nil {
-		panic(fmt.Sprintf("jira adapter: failed to create Agile client: %v", err))
+		return nil, fmt.Errorf("jira adapter: create Agile client: %w", err)
 	}
 	agile.Auth.SetBasicAuth(email, token)
 
@@ -44,7 +44,7 @@ func NewClient(baseURL, email, token, accountID string) *Client {
 		rest:      rest,
 		agile:     agile,
 		accountID: accountID,
-	}
+	}, nil
 }
 
 // GetIssue fetches a single Jira issue by key and maps it to domain.JiraIssue.
@@ -98,10 +98,13 @@ func (c *Client) SearchIssues(ctx context.Context, jql string) ([]*domain.JiraIs
 		if err != nil {
 			return nil, fmt.Errorf("search jira issues (jql=%q, startAt=%d): %w", jql, startAt, err)
 		}
+		if results == nil {
+			break
+		}
 		for _, issue := range results.Issues {
 			out = append(out, issueSchemeToJiraIssue(issue))
 		}
-		if results == nil || startAt+pageSize >= results.Total {
+		if startAt+pageSize >= results.Total {
 			break
 		}
 	}
@@ -110,21 +113,30 @@ func (c *Client) SearchIssues(ctx context.Context, jql string) ([]*domain.JiraIs
 
 // ListBoards retrieves boards by project key and optional board type (e.g. "scrum", "kanban").
 func (c *Client) ListBoards(ctx context.Context, projectKey, boardType string) ([]*domain.Board, error) {
+	const pageSize = 50
 	opts := &atlassianmodels.GetBoardsOptions{
 		ProjectKeyOrID: projectKey,
 		BoardType:      boardType,
 	}
-	page, _, err := c.agile.Board.Gets(ctx, opts, 0, 50)
-	if err != nil {
-		return nil, fmt.Errorf("list boards for project %s: %w", projectKey, err)
-	}
-	out := make([]*domain.Board, 0, len(page.Values))
-	for _, b := range page.Values {
-		out = append(out, &domain.Board{
-			ID:   b.ID,
-			Name: b.Name,
-			Type: b.Type,
-		})
+	var out []*domain.Board
+	for startAt := 0; ; startAt += pageSize {
+		page, _, err := c.agile.Board.Gets(ctx, opts, startAt, pageSize)
+		if err != nil {
+			return nil, fmt.Errorf("list boards for project %s (startAt=%d): %w", projectKey, startAt, err)
+		}
+		if page == nil {
+			break
+		}
+		for _, b := range page.Values {
+			out = append(out, &domain.Board{
+				ID:   b.ID,
+				Name: b.Name,
+				Type: b.Type,
+			})
+		}
+		if page.IsLast {
+			break
+		}
 	}
 	return out, nil
 }
@@ -141,19 +153,28 @@ func (c *Client) GetActiveSprintIssues(ctx context.Context, boardID int) ([]*dom
 	}
 
 	activeSprint := sprintPage.Values[0]
-	issuesPage, _, err := c.agile.Sprint.Issues(ctx, activeSprint.ID, nil, 0, 100)
-	if err != nil {
-		return nil, fmt.Errorf("get issues for sprint %d (board %d): %w", activeSprint.ID, boardID, err)
-	}
 
 	// Sprint issues from the agile API return only key+id; fetch each full issue via REST.
-	out := make([]*domain.JiraIssue, 0, len(issuesPage.Issues))
-	for _, sprintIssue := range issuesPage.Issues {
-		issue, err := c.GetIssue(ctx, sprintIssue.Key)
+	const pageSize = 100
+	var out []*domain.JiraIssue
+	for startAt := 0; ; startAt += pageSize {
+		issuesPage, _, err := c.agile.Sprint.Issues(ctx, activeSprint.ID, nil, startAt, pageSize)
 		if err != nil {
-			return nil, fmt.Errorf("get sprint issue %s: %w", sprintIssue.Key, err)
+			return nil, fmt.Errorf("get issues for sprint %d (board %d, startAt=%d): %w", activeSprint.ID, boardID, startAt, err)
 		}
-		out = append(out, issue)
+		if issuesPage == nil {
+			break
+		}
+		for _, sprintIssue := range issuesPage.Issues {
+			issue, err := c.GetIssue(ctx, sprintIssue.Key)
+			if err != nil {
+				return nil, fmt.Errorf("get sprint issue %s: %w", sprintIssue.Key, err)
+			}
+			out = append(out, issue)
+		}
+		if startAt+pageSize >= issuesPage.Total {
+			break
+		}
 	}
 	return out, nil
 }
@@ -250,11 +271,11 @@ func extractADFText(node *atlassianmodels.CommentNodeScheme) string {
 	if node.Type == "text" {
 		return node.Text
 	}
-	result := ""
+	var sb strings.Builder
 	for _, child := range node.Content {
-		result += extractADFText(child)
+		sb.WriteString(extractADFText(child))
 	}
-	return result
+	return sb.String()
 }
 
 // parseJiraTime parses a Jira ISO 8601 timestamp string.
