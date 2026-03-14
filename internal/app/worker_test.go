@@ -71,6 +71,9 @@ func (s *stubIntegrationStore) ListSpaces(ctx context.Context, id int) ([]domain
 }
 func (s *stubIntegrationStore) UpdateSpace(ctx context.Context, sp domain.Space) error { return nil }
 func (s *stubIntegrationStore) DeleteSpace(ctx context.Context, id int) error          { return nil }
+func (s *stubIntegrationStore) ReplaceSpaces(_ context.Context, _ int, _ []domain.Space) error {
+	return nil
+}
 func (s *stubIntegrationStore) CreateTeammate(ctx context.Context, t domain.Teammate) error {
 	return nil
 }
