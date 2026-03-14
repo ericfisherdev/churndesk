@@ -99,7 +99,7 @@ func TestPRHandler_Page_Renders(t *testing.T) {
 	integrations := &stubPRIntegrationStore{}
 
 	h := newTestPRHandler(client, items, links, integrations)
-	req := httptest.NewRequest("GET", "/prs/myorg/myrepo/42", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/prs/myorg/myrepo/42", nil)
 	req.SetPathValue("owner", "myorg")
 	req.SetPathValue("repo", "myrepo")
 	req.SetPathValue("number", "42")
@@ -122,7 +122,7 @@ func TestPRHandler_Page_MarksSeen(t *testing.T) {
 	items := &stubPRItemStore{}
 	h := newTestPRHandler(client, items, &stubLinkStore{}, &stubPRIntegrationStore{})
 
-	req := httptest.NewRequest("GET", "/prs/myorg/myrepo/7", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/prs/myorg/myrepo/7", nil)
 	req.SetPathValue("owner", "myorg")
 	req.SetPathValue("repo", "myrepo")
 	req.SetPathValue("number", "7")
@@ -135,7 +135,7 @@ func TestPRHandler_PostComment_ReturnsPartial(t *testing.T) {
 	client := &mockGitHubClient{}
 	h := newTestPRHandler(client, &stubPRItemStore{}, &stubLinkStore{}, &stubPRIntegrationStore{})
 
-	req := httptest.NewRequest("POST", "/prs/myorg/myrepo/42/comments", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/prs/myorg/myrepo/42/comments", nil)
 	req.SetPathValue("owner", "myorg")
 	req.SetPathValue("repo", "myrepo")
 	req.SetPathValue("number", "42")

@@ -70,7 +70,7 @@ func TestJiraHandler_Page_Renders(t *testing.T) {
 	links := &stubJiraLinkStore{}
 
 	h := handlers.NewJiraHandler(client, items, links)
-	req := httptest.NewRequest("GET", "/jira/FRONT-441", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/jira/FRONT-441", nil)
 	req.SetPathValue("key", "FRONT-441")
 	rec := httptest.NewRecorder()
 	h.Page(rec, req)
@@ -89,7 +89,7 @@ func TestJiraHandler_Page_MarksSeen(t *testing.T) {
 	items := &stubJiraItemStore{}
 
 	h := handlers.NewJiraHandler(client, items, &stubJiraLinkStore{})
-	req := httptest.NewRequest("GET", "/jira/BACK-12", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/jira/BACK-12", nil)
 	req.SetPathValue("key", "BACK-12")
 	h.Page(httptest.NewRecorder(), req)
 
@@ -100,7 +100,7 @@ func TestJiraHandler_PostComment_ReturnsPartial(t *testing.T) {
 	client := &mockJiraClient{}
 	h := handlers.NewJiraHandler(client, &stubJiraItemStore{}, &stubJiraLinkStore{})
 
-	req := httptest.NewRequest("POST", "/jira/FRONT-441/comments", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/jira/FRONT-441/comments", nil)
 	req.SetPathValue("key", "FRONT-441")
 	req.Form = map[string][]string{"body": {"Reproduced on staging."}}
 	rec := httptest.NewRecorder()

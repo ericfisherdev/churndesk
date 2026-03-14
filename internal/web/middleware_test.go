@@ -67,7 +67,7 @@ func TestOnboardingGate_RedirectsWhenIncomplete(t *testing.T) {
 	store := &stubOnboardingStore{complete: false}
 	mw := web.OnboardingGate(store)(okHandler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	rec := httptest.NewRecorder()
 	mw.ServeHTTP(rec, req)
 
@@ -79,7 +79,7 @@ func TestOnboardingGate_HTMXRedirectWhenIncomplete(t *testing.T) {
 	store := &stubOnboardingStore{complete: false}
 	mw := web.OnboardingGate(store)(okHandler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	req.Header.Set("HX-Request", "true")
 	rec := httptest.NewRecorder()
 	mw.ServeHTTP(rec, req)
@@ -92,7 +92,7 @@ func TestOnboardingGate_PassthroughWhenComplete(t *testing.T) {
 	store := &stubOnboardingStore{complete: true}
 	mw := web.OnboardingGate(store)(okHandler)
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", nil)
 	rec := httptest.NewRecorder()
 	mw.ServeHTTP(rec, req)
 
@@ -112,7 +112,7 @@ func TestOnboardingGate_ExemptsPaths(t *testing.T) {
 		"/sync",
 	}
 	for _, path := range exemptPaths {
-		req := httptest.NewRequest("GET", path, nil)
+		req := httptest.NewRequestWithContext(context.Background(), "GET", path, nil)
 		rec := httptest.NewRecorder()
 		mw.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusOK, rec.Code, "path %s should be exempt", path)

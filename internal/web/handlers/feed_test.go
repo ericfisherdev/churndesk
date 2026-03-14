@@ -59,7 +59,7 @@ func TestFeedFragment_SetsNewItemsHeader(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}, {ID: "b"}}}
 	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
-	req := httptest.NewRequest(http.MethodGet, "/feed?count=1", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/feed?count=1", nil)
 	w := httptest.NewRecorder()
 	h.Fragment(w, req)
 
@@ -71,7 +71,7 @@ func TestFeedFragment_NoHeaderWhenCountUnchanged(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}, {ID: "b"}}}
 	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
-	req := httptest.NewRequest(http.MethodGet, "/feed?count=2", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/feed?count=2", nil)
 	w := httptest.NewRecorder()
 	h.Fragment(w, req)
 
@@ -87,7 +87,7 @@ func TestDismiss_CallsStore(t *testing.T) {
 		defaultTestSettings(),
 	)
 
-	req := httptest.NewRequest(http.MethodPost, "/items/my-item/dismiss", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/items/my-item/dismiss", nil)
 	req.SetPathValue("id", "my-item")
 	w := httptest.NewRecorder()
 	h.Dismiss(w, req)
@@ -101,7 +101,7 @@ func TestSync_CallsSyncer(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{}}
 	h := handlers.NewFeedHandler(store, syncer, defaultTestSettings())
 
-	req := httptest.NewRequest(http.MethodPost, "/sync", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/sync", nil)
 	w := httptest.NewRecorder()
 	h.Sync(w, req)
 
@@ -113,7 +113,7 @@ func TestFeedFragment_CountParamIgnoredIfNotInt(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}}}
 	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
-	req := httptest.NewRequest(http.MethodGet, "/feed?count=abc", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/feed?count=abc", nil)
 	w := httptest.NewRecorder()
 	h.Fragment(w, req)
 
