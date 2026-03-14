@@ -21,11 +21,11 @@ type stubItemStore struct {
 
 var _ handlers.FeedItemStore = (*stubItemStore)(nil)
 
-func (s *stubItemStore) ListItems(_ context.Context) ([]domain.Item, error) {
+func (s *stubItemStore) ListRanked(_ context.Context, _ int) ([]domain.Item, error) {
 	return s.items, nil
 }
-func (s *stubItemStore) DismissItem(_ context.Context, _ string) error { return s.dismissErr }
-func (s *stubItemStore) MarkSeen(_ context.Context, _ string) error    { return s.seenErr }
+func (s *stubItemStore) Dismiss(_ context.Context, _ string) error { return s.dismissErr }
+func (s *stubItemStore) MarkSeen(_ context.Context, _ string) error { return s.seenErr }
 
 // stubSyncer implements handlers.Syncer for tests.
 type stubSyncer struct{ called bool }
@@ -108,10 +108,10 @@ type captureDismissStore struct {
 	dismissed *string
 }
 
-func (s *captureDismissStore) ListItems(_ context.Context) ([]domain.Item, error) {
+func (s *captureDismissStore) ListRanked(_ context.Context, _ int) ([]domain.Item, error) {
 	return s.items, nil
 }
-func (s *captureDismissStore) DismissItem(_ context.Context, id string) error {
+func (s *captureDismissStore) Dismiss(_ context.Context, id string) error {
 	*s.dismissed = id
 	return nil
 }
