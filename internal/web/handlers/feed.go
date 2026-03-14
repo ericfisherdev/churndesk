@@ -12,8 +12,8 @@ import (
 
 // FeedItemStore is the subset of port.ItemStore used by FeedHandler.
 type FeedItemStore interface {
-	ListItems(ctx context.Context) ([]domain.Item, error)
-	DismissItem(ctx context.Context, id string) error
+	ListRanked(ctx context.Context, limit int) ([]domain.Item, error)
+	Dismiss(ctx context.Context, id string) error
 	MarkSeen(ctx context.Context, id string) error
 }
 
@@ -36,7 +36,7 @@ func NewFeedHandler(items FeedItemStore, syncer Syncer, defaultColumns int) *Fee
 
 // Page renders the full feed page (initial load).
 func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request) {
-	items, err := h.items.ListItems(r.Context())
+	items, err := h.items.ListRanked(r.Context(), h.defaultColumns)
 	if err != nil {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
@@ -48,7 +48,7 @@ func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request) {
 // Reads ?count=N from query string to detect new-item count changes.
 // Sets X-Has-New-Items: true header when the item count has grown.
 func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {
-	items, err := h.items.ListItems(r.Context())
+	items, err := h.items.ListRanked(r.Context(), h.defaultColumns)
 	if err != nil {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
@@ -63,11 +63,11 @@ func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {
 // Dismiss marks an item as dismissed and returns the updated fragment.
 func (h *FeedHandler) Dismiss(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := h.items.DismissItem(r.Context(), id); err != nil {
+	if err := h.items.Dismiss(r.Context(), id); err != nil {
 		http.Error(w, "dismiss failed", http.StatusInternalServerError)
 		return
 	}
-	items, err := h.items.ListItems(r.Context())
+	items, err := h.items.ListRanked(r.Context(), h.defaultColumns)
 	if err != nil {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
@@ -91,7 +91,7 @@ func (h *FeedHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "sync failed", http.StatusInternalServerError)
 		return
 	}
-	items, err := h.items.ListItems(r.Context())
+	items, err := h.items.ListRanked(r.Context(), h.defaultColumns)
 	if err != nil {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
