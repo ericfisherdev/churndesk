@@ -41,6 +41,7 @@ templ feedGrid(items []domain.Item, columns int) {
 templ FeedItem(item domain.Item) {
 	<div
 		class={ "feed-item", itemTypeClass(item.Type), unseenClass(item.Seen) }
+		onclick={ navigateToItem(sanitizeURL(item.URL)) }
 		hx-post={ "/items/" + item.ID + "/seen" }
 		hx-trigger="click"
 		hx-swap="none">
@@ -64,7 +65,8 @@ templ FeedItem(item domain.Item) {
 			hx-target="closest .feed-item"
 			hx-swap="outerHTML"
 			onclick="event.stopPropagation()"
-			title="Dismiss">
+			title="Dismiss"
+			aria-label="Dismiss">
 			⊗
 		</button>
 	</div>
