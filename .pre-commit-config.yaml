@@ -1,0 +1,52 @@
+repos:
+  # ── Universal hygiene ─────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # ── golangci-lint (gofmt + govet + staticcheck + extras) ─────────────────
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v2.3.0
+    hooks:
+      - id: golangci-lint
+
+  # ── go mod tidy ───────────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: go-mod-tidy
+        name: go mod tidy
+        entry: go mod tidy
+        language: system
+        pass_filenames: false
+
+  # ── templ generate (keeps *_templ.go files in sync) ──────────────────────
+  - repo: local
+    hooks:
+      - id: templ-generate
+        name: templ generate
+        entry: templ generate ./internal/web/templates/...
+        language: system
+        files: \.templ$
+        pass_filenames: false
+
+  # ── Dockerfile linting ────────────────────────────────────────────────────
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+
+  # ── docker-compose validation ─────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: docker-compose-validate
+        name: docker compose config check
+        entry: docker compose config --quiet
+        language: system
+        files: docker-compose.*\.ya?ml$
+        pass_filenames: false
