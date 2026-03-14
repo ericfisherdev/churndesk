@@ -1,0 +1,87 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/churndesk/churndesk/internal/domain"
+)
+
+templ FeedPage(items []domain.Item, columns int) {
+	@Layout("Feed") {
+		<div class="container mx-auto px-4 py-8">
+			<div class="flex items-center justify-between mb-6">
+				<h1 class="text-2xl font-bold">Your Feed</h1>
+				<button
+					hx-post="/sync"
+					hx-target="#feed-list"
+					hx-swap="outerHTML"
+					class="btn-primary"
+				>
+					Sync
+				</button>
+			</div>
+			<div
+				id="feed-list"
+				hx-get="/feed/fragment"
+				hx-trigger="every 30s"
+				hx-swap="outerHTML"
+			>
+				@FeedFragment(items, false)
+			</div>
+		</div>
+	}
+}
+
+templ FeedFragment(items []domain.Item, hasNew bool) {
+	<div id="feed-list">
+		if hasNew {
+			<div class="new-items-banner" x-init="$el.scrollIntoView({behavior: 'smooth'})">
+				New items available
+			</div>
+		}
+		if len(items) == 0 {
+			<div class="empty-state">
+				<p>No action items. You're all caught up!</p>
+			</div>
+		} else {
+			<ul class="feed-items space-y-3">
+				for _, item := range items {
+					@FeedItem(item)
+				}
+			</ul>
+		}
+	</div>
+}
+
+templ FeedItem(item domain.Item) {
+	<li
+		id={ fmt.Sprintf("item-%s", item.ID) }
+		class="feed-item card"
+	>
+		<div class="feed-item-header">
+			<span class="feed-item-source badge">{ item.Source }</span>
+			<span class="feed-item-score">{ fmt.Sprintf("%.0f", item.TotalScore) }</span>
+		</div>
+		<div class="feed-item-body">
+			<a href={ templ.SafeURL(item.URL) } class="feed-item-title" target="_blank" rel="noopener noreferrer">
+				{ item.Title }
+			</a>
+		</div>
+		<div class="feed-item-actions">
+			<button
+				hx-post={ fmt.Sprintf("/items/%s/dismiss", item.ID) }
+				hx-target="#feed-list"
+				hx-swap="outerHTML"
+				class="btn-ghost btn-sm"
+			>
+				Dismiss
+			</button>
+			<button
+				hx-post={ fmt.Sprintf("/items/%s/seen", item.ID) }
+				hx-swap="none"
+				class="btn-ghost btn-sm"
+			>
+				Mark seen
+			</button>
+		</div>
+	</li>
+}
