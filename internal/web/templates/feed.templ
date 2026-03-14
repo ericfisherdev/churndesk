@@ -1,15 +1,19 @@
 // internal/web/templates/feed.templ
 package templates
 
-import "github.com/churndesk/churndesk/internal/domain"
+import (
+	"strconv"
+
+	"github.com/churndesk/churndesk/internal/domain"
+)
 
 // FeedPage renders the full feed page with layout wrapper.
-templ FeedPage(items []domain.Item, columns int) {
+templ FeedPage(items []domain.Item, columns, interval int) {
 	@Layout("Feed") {
 		<div
 			id="feed"
 			hx-get="/feed"
-			hx-trigger={ "every " + autoRefreshTrigger() + "s" }
+			hx-trigger={ "every " + strconv.Itoa(interval) + "s" }
 			hx-swap="innerHTML"
 			hx-vals={ `js:{"count": document.querySelectorAll('.feed-item').length}` }>
 			@feedGrid(items, columns)
@@ -18,7 +22,7 @@ templ FeedPage(items []domain.Item, columns int) {
 }
 
 // FeedFragment renders only the inner grid (returned by GET /feed for HTMX swap).
-templ FeedFragment(items []domain.Item, columns int) {
+templ FeedFragment(items []domain.Item, columns, interval int) {
 	@feedGrid(items, columns)
 }
 

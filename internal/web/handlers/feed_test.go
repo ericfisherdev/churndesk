@@ -35,9 +35,29 @@ func (s *stubSyncer) SyncAll(_ context.Context) error {
 	return nil
 }
 
+// stubFeedSettingsStore implements handlers.FeedSettingsStore for tests.
+type stubFeedSettingsStore struct {
+	values map[domain.SettingKey]string
+}
+
+func (s *stubFeedSettingsStore) Get(_ context.Context, key domain.SettingKey) (string, error) {
+	return s.values[key], nil
+}
+
+var _ handlers.FeedSettingsStore = (*stubFeedSettingsStore)(nil)
+
+func defaultTestSettings() *stubFeedSettingsStore {
+	return &stubFeedSettingsStore{
+		values: map[domain.SettingKey]string{
+			domain.SettingFeedColumns:         "1",
+			domain.SettingAutoRefreshInterval: "20",
+		},
+	}
+}
+
 func TestFeedFragment_SetsNewItemsHeader(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}, {ID: "b"}}}
-	h := handlers.NewFeedHandler(store, &stubSyncer{}, 3)
+	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
 	req := httptest.NewRequest(http.MethodGet, "/feed?count=1", nil)
 	w := httptest.NewRecorder()
@@ -49,7 +69,7 @@ func TestFeedFragment_SetsNewItemsHeader(t *testing.T) {
 
 func TestFeedFragment_NoHeaderWhenCountUnchanged(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}, {ID: "b"}}}
-	h := handlers.NewFeedHandler(store, &stubSyncer{}, 3)
+	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
 	req := httptest.NewRequest(http.MethodGet, "/feed?count=2", nil)
 	w := httptest.NewRecorder()
@@ -64,7 +84,7 @@ func TestDismiss_CallsStore(t *testing.T) {
 	h := handlers.NewFeedHandler(
 		&captureDismissStore{items: []domain.Item{}, dismissed: &dismissed},
 		&stubSyncer{},
-		3,
+		defaultTestSettings(),
 	)
 
 	req := httptest.NewRequest(http.MethodPost, "/items/my-item/dismiss", nil)
@@ -79,7 +99,7 @@ func TestDismiss_CallsStore(t *testing.T) {
 func TestSync_CallsSyncer(t *testing.T) {
 	syncer := &stubSyncer{}
 	store := &stubItemStore{items: []domain.Item{}}
-	h := handlers.NewFeedHandler(store, syncer, 3)
+	h := handlers.NewFeedHandler(store, syncer, defaultTestSettings())
 
 	req := httptest.NewRequest(http.MethodPost, "/sync", nil)
 	w := httptest.NewRecorder()
@@ -91,7 +111,7 @@ func TestSync_CallsSyncer(t *testing.T) {
 
 func TestFeedFragment_CountParamIgnoredIfNotInt(t *testing.T) {
 	store := &stubItemStore{items: []domain.Item{{ID: "a"}}}
-	h := handlers.NewFeedHandler(store, &stubSyncer{}, 3)
+	h := handlers.NewFeedHandler(store, &stubSyncer{}, defaultTestSettings())
 
 	req := httptest.NewRequest(http.MethodGet, "/feed?count=abc", nil)
 	w := httptest.NewRecorder()

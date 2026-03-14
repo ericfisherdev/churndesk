@@ -329,8 +329,6 @@ func unseenClass(seen int) string {
 
 func intStr(n int) string { return fmt.Sprintf("%d", n) }
 
-func autoRefreshTrigger() string { return "20" } // TODO: load from settings in FeedPage
-
 func relativeTime(t time.Time) string {
 	d := time.Since(t)
 	switch {
