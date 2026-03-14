@@ -7,6 +7,38 @@ on:
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Install hadolint
+        run: |
+          curl -sSL https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 \
+            -o /usr/local/bin/hadolint
+          chmod +x /usr/local/bin/hadolint
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Cache pre-commit environments
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Run pre-commit (all files)
+        run: pre-commit run --all-files
+
   test:
     runs-on: ubuntu-latest
     env:
@@ -22,7 +54,7 @@ jobs:
         run: go install github.com/a-h/templ/cmd/templ@latest
 
       - name: Generate templates
-        run: templ generate ./internal/web/templates/...
+        run: CGO_ENABLED=1 templ generate ./internal/web/templates/...
 
       - name: Test
         run: CGO_ENABLED=1 go test ./...
