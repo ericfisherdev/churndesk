@@ -31,7 +31,7 @@ jobs:
           install -m 755 /tmp/hadolint /usr/local/bin/hadolint
 
       - name: Install pre-commit
-        run: pip install pre-commit
+        run: pip install pre-commit==4.5.1
 
       - name: Cache pre-commit environments
         uses: actions/cache@v4
@@ -63,7 +63,7 @@ jobs:
         run: go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
       - name: Generate templates
-        run: CGO_ENABLED=1 templ generate ./internal/web/templates/...
+        run: templ generate ./internal/web/templates/...
 
       - name: Test
         run: CGO_ENABLED=1 go test ./...
