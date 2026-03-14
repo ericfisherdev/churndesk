@@ -40,7 +40,7 @@ jobs:
         run: SKIP=golangci-lint pre-commit run --all-files
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           version: v2.3.0
 
