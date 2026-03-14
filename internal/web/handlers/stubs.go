@@ -5,14 +5,5 @@ package handlers
 
 import "net/http"
 
-// SettingsHandler handles the settings page and save actions. Real implementation in settings.go.
-type SettingsHandler struct{}
-
-func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request)              {}
-func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request)   {}
-func (h *SettingsHandler) SaveSpaces(w http.ResponseWriter, r *http.Request)        {}
-func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request)     {}
-func (h *SettingsHandler) SavePrerequisites(w http.ResponseWriter, r *http.Request) {}
-func (h *SettingsHandler) SaveWeights(w http.ResponseWriter, r *http.Request)       {}
-func (h *SettingsHandler) SaveGeneral(w http.ResponseWriter, r *http.Request)       {}
-func (h *SettingsHandler) Rescore(w http.ResponseWriter, r *http.Request)           {}
+// placeholder satisfies the import to avoid empty file errors.
+var _ = http.StatusOK
