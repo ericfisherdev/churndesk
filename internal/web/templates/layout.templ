@@ -1,0 +1,19 @@
+package templates
+
+templ Layout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } — Churndesk</title>
+			<link rel="stylesheet" href="/static/style.css"/>
+			<script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+			<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+		</head>
+		<body x-data="churndesk()" class="bg-gray-950 text-gray-100 min-h-screen">
+			{ children... }
+			<script src="/static/app.js"></script>
+		</body>
+	</html>
+}
