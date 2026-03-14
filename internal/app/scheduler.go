@@ -102,6 +102,12 @@ func (s *Scheduler) startWorker(parent context.Context, integration domain.Integ
 	}()
 }
 
+// SyncAll triggers an immediate re-sync by reloading all workers.
+// It satisfies the handlers.Syncer interface used by FeedHandler.
+func (s *Scheduler) SyncAll(ctx context.Context) error {
+	return s.Reload(ctx)
+}
+
 // Reload stops all running workers and restarts them from the current integration list.
 // Safe to call concurrently from the settings handler after integration or space changes.
 // No-op if called before Start.
