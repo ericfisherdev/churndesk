@@ -107,7 +107,7 @@ func TestSettingsHandler_Page_Renders(t *testing.T) {
 	rescore := &stubRescoreStore{}
 
 	h := handlers.NewSettingsHandler(integrations, settings, rescore, nil)
-	req := httptest.NewRequest("GET", "/settings", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/settings", nil)
 	rec := httptest.NewRecorder()
 	h.Page(rec, req)
 
@@ -129,7 +129,7 @@ func TestSettingsHandler_SaveGeneral_ClampsColumns(t *testing.T) {
 		"max_age_boost":         {"50"},
 		"min_review_count":      {"2"},
 	}
-	req := httptest.NewRequest("POST", "/settings/general", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/general", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	h.SaveGeneral(rec, req)
@@ -149,7 +149,7 @@ func TestSettingsHandler_Rescore_CallsStore(t *testing.T) {
 	rescore := &stubRescoreStore{}
 
 	h := handlers.NewSettingsHandler(integrations, settings, rescore, nil)
-	req := httptest.NewRequest("POST", "/settings/rescore", nil)
+	req := httptest.NewRequestWithContext(context.Background(), "POST", "/settings/rescore", nil)
 	rec := httptest.NewRecorder()
 	h.Rescore(rec, req)
 
