@@ -5,14 +5,6 @@ package handlers
 
 import "net/http"
 
-// PRHandler handles PR detail page and actions. Real implementation in pr.go.
-type PRHandler struct{}
-
-func (h *PRHandler) Page(w http.ResponseWriter, r *http.Request)             {}
-func (h *PRHandler) PostComment(w http.ResponseWriter, r *http.Request)      {}
-func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request)     {}
-func (h *PRHandler) RequestReviewers(w http.ResponseWriter, r *http.Request) {}
-
 // JiraHandler handles Jira detail page and actions. Real implementation in jira.go.
 type JiraHandler struct{}
 
