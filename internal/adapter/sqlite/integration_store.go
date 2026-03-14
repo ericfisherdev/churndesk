@@ -46,7 +46,10 @@ func (s *integrationStore) UpdateIntegration(ctx context.Context, i domain.Integ
 		string(i.Provider), i.AccessToken, i.BaseURL, i.Username, i.AccountID,
 		i.PollIntervalSeconds, boolToInt(i.Enabled), i.ID,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update integration: %w", err)
+	}
+	return nil
 }
 
 func (s *integrationStore) DeleteIntegration(ctx context.Context, id int) error {

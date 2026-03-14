@@ -240,6 +240,9 @@ func anyCheckFailing(checks []domain.CheckRun) bool {
 }
 
 func allChecksPassing(checks []domain.CheckRun) bool {
+	if len(checks) == 0 {
+		return false
+	}
 	for _, c := range checks {
 		if c.Conclusion != "success" {
 			return false

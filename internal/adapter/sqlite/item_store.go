@@ -115,8 +115,8 @@ func (s *itemStore) MarkSeen(ctx context.Context, id string) error {
 func (s *itemStore) MarkSeenByPR(ctx context.Context, prOwner, prRepo string, prNumber int) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET seen = 1, updated_at = ?
-		 WHERE source = 'github' AND pr_owner = ? AND pr_repo = ? AND external_id = ?`,
-		time.Now().UTC(), prOwner, prRepo, strconv.Itoa(prNumber),
+		 WHERE source = ? AND pr_owner = ? AND pr_repo = ? AND external_id = ?`,
+		time.Now().UTC(), string(domain.ProviderGitHub), prOwner, prRepo, strconv.Itoa(prNumber),
 	)
 	return err
 }
@@ -124,8 +124,8 @@ func (s *itemStore) MarkSeenByPR(ctx context.Context, prOwner, prRepo string, pr
 func (s *itemStore) MarkSeenByJiraKey(ctx context.Context, jiraKey string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET seen = 1, updated_at = ?
-		 WHERE source = 'jira' AND external_id = ?`,
-		time.Now().UTC(), jiraKey,
+		 WHERE source = ? AND external_id = ?`,
+		time.Now().UTC(), string(domain.ProviderJira), jiraKey,
 	)
 	return err
 }

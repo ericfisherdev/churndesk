@@ -93,7 +93,10 @@ func (h *PRHandler) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jiraKeys, _ := h.links.GetJiraKeysForPR(r.Context(), owner, repo, number)
+	jiraKeys, err := h.links.GetJiraKeysForPR(r.Context(), owner, repo, number)
+	if err != nil {
+		log.Printf("get jira keys for PR %s/%s#%d: %v", owner, repo, number, err)
+	}
 	teammates := h.listTeammates(r.Context())
 	bodyHTML := template.HTML(markdown.Render(pr.Body)) //nolint:gosec
 
@@ -152,7 +155,17 @@ func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.gh.SubmitReview(r.Context(), owner, repo, number, r.FormValue("verdict"), r.FormValue("body")); err != nil {
+	verdict := r.FormValue("verdict")
+	switch verdict {
+	case "APPROVE", "REQUEST_CHANGES", "COMMENT":
+		// valid
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		templates.ErrorPartial("Invalid review verdict").Render(r.Context(), w) //nolint:errcheck
+		return
+	}
+
+	if err := h.gh.SubmitReview(r.Context(), owner, repo, number, verdict, r.FormValue("body")); err != nil {
 		log.Printf("submit review: %v", err)
 		templates.ErrorPartial("Failed to submit review").Render(r.Context(), w) //nolint:errcheck
 		return
@@ -175,7 +188,14 @@ func (h *PRHandler) RequestReviewers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.gh.RequestReviewers(r.Context(), owner, repo, number, r.Form["logins"]); err != nil {
+	logins := r.Form["logins"]
+	if len(logins) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		templates.ErrorPartial("Please select at least one reviewer").Render(r.Context(), w) //nolint:errcheck
+		return
+	}
+
+	if err := h.gh.RequestReviewers(r.Context(), owner, repo, number, logins); err != nil {
 		log.Printf("request reviewers: %v", err)
 		templates.ErrorPartial("Failed to request reviewers").Render(r.Context(), w) //nolint:errcheck
 		return
