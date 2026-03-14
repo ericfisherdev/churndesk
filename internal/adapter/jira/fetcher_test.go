@@ -93,3 +93,34 @@ func TestJiraFetcher_FirstSync_SuppressesAllItemTypes(t *testing.T) {
 
 	assert.Empty(t, items, "all Jira item types must be suppressed on first sync (lastSyncedAt == nil)")
 }
+
+func TestJiraFetcher_NewComment(t *testing.T) {
+	// Issue where I have commented — a new comment from someone else should generate jira_comment.
+	lastSync := time.Now().Add(-1 * time.Hour)
+	client := &mockJiraClient{
+		issues: []*domain.JiraIssue{
+			{Key: "BACK-10", Summary: "API refactor", IssueType: "Task", Status: "In Progress",
+				CreatedAt: time.Now().Add(-2 * time.Hour), UpdatedAt: time.Now(),
+				Comments: []domain.Comment{
+					{ID: 1, Author: "account-id", Body: "Working on it", CreatedAt: time.Now().Add(-90 * time.Minute)},
+					{ID: 2, Author: "bob", Body: "Any ETA?", CreatedAt: time.Now()}, // after last sync
+				}},
+		},
+		boards: []*domain.Board{{ID: 1, Type: "kanban"}},
+	}
+	integration := domain.Integration{Provider: domain.ProviderJira, Username: "account-id", LastSyncedAt: &lastSync}
+	spaces := []domain.Space{{Owner: "BACK", Name: "Backend", Provider: domain.ProviderJira, BoardType: "kanban", JiraBoardID: 1, Enabled: true}}
+
+	fetcher := jiradapter.NewFetcher(client, "account-id")
+	items, err := fetcher.Fetch(context.Background(), integration, spaces)
+	require.NoError(t, err)
+
+	var commentItems []domain.Item
+	for _, it := range items {
+		if it.Type == domain.ItemTypeJiraComment {
+			commentItems = append(commentItems, it)
+		}
+	}
+	require.Len(t, commentItems, 1)
+	assert.Equal(t, "jira:comment:BACK-10", commentItems[0].ID)
+}

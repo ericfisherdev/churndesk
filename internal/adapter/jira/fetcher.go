@@ -89,23 +89,16 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, last
 	}
 
 	// jira_comment: new comment on issue where I authored at least one comment.
-	for _, c := range issue.Comments {
-		if c.Author == f.accountID {
-			// I have commented on this issue — check for new comments from others
-			for _, c2 := range issue.Comments {
-				if c2.Author != f.accountID && c2.CreatedAt.After(*lastSyncedAt) {
-					items = append(items, domain.Item{
-						ID:         fmt.Sprintf("jira:comment:%s", issue.Key),
-						Source:     "jira",
-						Type:       domain.ItemTypeJiraComment,
-						ExternalID: issue.Key,
-						Title:      fmt.Sprintf("New comment: %s", issue.Summary),
-						Metadata:   buildCommentJiraMetadata(metadata, &c2),
-					})
-					break // one item per issue
-				}
-			}
-			break
+	if iHaveCommented(issue.Comments, f.accountID) {
+		if newest := firstNewCommentFrom(issue.Comments, f.accountID, *lastSyncedAt); newest != nil {
+			items = append(items, domain.Item{
+				ID:         fmt.Sprintf("jira:comment:%s", issue.Key),
+				Source:     "jira",
+				Type:       domain.ItemTypeJiraComment,
+				ExternalID: issue.Key,
+				Title:      fmt.Sprintf("New comment: %s", issue.Summary),
+				Metadata:   buildCommentJiraMetadata(metadata, newest),
+			})
 		}
 	}
 
@@ -140,6 +133,27 @@ func buildJiraMetadata(issue *domain.JiraIssue) string {
 		return "{}"
 	}
 	return string(b)
+}
+
+// iHaveCommented reports whether accountID has authored any comment in the slice.
+func iHaveCommented(comments []domain.Comment, accountID string) bool {
+	for _, c := range comments {
+		if c.Author == accountID {
+			return true
+		}
+	}
+	return false
+}
+
+// firstNewCommentFrom returns the first comment not authored by accountID posted after since,
+// or nil if none exists.
+func firstNewCommentFrom(comments []domain.Comment, accountID string, since time.Time) *domain.Comment {
+	for i := range comments {
+		if comments[i].Author != accountID && comments[i].CreatedAt.After(since) {
+			return &comments[i]
+		}
+	}
+	return nil
 }
 
 func buildCommentJiraMetadata(base string, c *domain.Comment) string {
