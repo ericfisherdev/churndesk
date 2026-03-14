@@ -71,17 +71,24 @@ func (c *Client) ListPRReviews(ctx context.Context, owner, repo string, number i
 }
 
 func (c *Client) ListCheckRuns(ctx context.Context, owner, repo, headSHA string) ([]domain.CheckRun, error) {
-	runs, _, err := c.gh.Checks.ListCheckRunsForRef(ctx, owner, repo, headSHA, nil)
-	if err != nil {
-		return nil, fmt.Errorf("list check runs: %w", err)
-	}
-	out := make([]domain.CheckRun, 0, len(runs.CheckRuns))
-	for _, r := range runs.CheckRuns {
-		out = append(out, domain.CheckRun{
-			Name:       r.GetName(),
-			Status:     r.GetStatus(),
-			Conclusion: r.GetConclusion(),
-		})
+	var out []domain.CheckRun
+	opts := &gogithub.ListCheckRunsOptions{ListOptions: gogithub.ListOptions{PerPage: 100}}
+	for {
+		runs, resp, err := c.gh.Checks.ListCheckRunsForRef(ctx, owner, repo, headSHA, opts)
+		if err != nil {
+			return nil, fmt.Errorf("list check runs for %s/%s@%s: %w", owner, repo, headSHA, err)
+		}
+		for _, r := range runs.CheckRuns {
+			out = append(out, domain.CheckRun{
+				Name:       r.GetName(),
+				Status:     r.GetStatus(),
+				Conclusion: r.GetConclusion(),
+			})
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 	return out, nil
 }
@@ -109,7 +116,10 @@ func (c *Client) RequestReviewers(ctx context.Context, owner, repo string, numbe
 	_, _, err := c.gh.PullRequests.RequestReviewers(ctx, owner, repo, number, gogithub.ReviewersRequest{
 		Reviewers: logins,
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("request reviewers on %s/%s#%d: %w", owner, repo, number, err)
+	}
+	return nil
 }
 
 func (c *Client) ListPRsForRepo(ctx context.Context, owner, repo string) ([]*domain.PRDetail, error) {
