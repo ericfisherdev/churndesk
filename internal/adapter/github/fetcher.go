@@ -121,9 +121,11 @@ func (f *Fetcher) processPR(
 	isOwnPR := pr.Author == f.authenticatedUser
 	_, isTeammate := teammateSet[pr.Author]
 
+	collapsed := collapseReviewsToLatest(reviews)
+
 	if isTeammate && !isOwnPR {
-		userAlreadyReviewed := hasUserReviewed(reviews, f.authenticatedUser)
-		approvalCount := countApprovals(reviews, f.authenticatedUser)
+		userAlreadyReviewed := hasUserReviewed(collapsed, f.authenticatedUser)
+		approvalCount := countApprovals(collapsed, f.authenticatedUser)
 		if !userAlreadyReviewed && approvalCount < minReviewCount {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:review_needed:%s/%s:%d", space.Owner, space.Name, pr.Number),
@@ -139,7 +141,7 @@ func (f *Fetcher) processPR(
 				UpdatedAt:  pr.UpdatedAt,
 			})
 		}
-		if hasDismissedReview(reviews, f.authenticatedUser) {
+		if hasDismissedReview(collapsed, f.authenticatedUser) {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:stale_review:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
@@ -157,7 +159,7 @@ func (f *Fetcher) processPR(
 	}
 
 	if isOwnPR {
-		if hasChangesRequested(reviews) {
+		if hasChangesRequested(collapsed) {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:changes_requested:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
@@ -203,7 +205,7 @@ func (f *Fetcher) processPR(
 				UpdatedAt:  pr.UpdatedAt,
 			})
 		}
-		if !hasChangesRequested(reviews) && countAllApprovals(reviews) >= minReviewCount {
+		if !hasChangesRequested(collapsed) && countAllApprovals(collapsed) >= minReviewCount {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:approved:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
@@ -276,7 +278,10 @@ func buildCommentMetadata(base string, latest *domain.Comment) string {
 	m["latest_comment"] = latest.Body
 	m["latest_comment_author"] = latest.Author
 	m["latest_comment_at"] = latest.CreatedAt.Format(time.RFC3339)
-	b, _ := json.Marshal(m)
+	b, err := json.Marshal(m)
+	if err != nil {
+		return base
+	}
 	return string(b)
 }
 
@@ -305,9 +310,9 @@ func collapseReviewsToLatest(reviews []domain.Review) map[string]string {
 	return latest
 }
 
-func countApprovals(reviews []domain.Review, excludeUser string) int {
+func countApprovals(collapsed map[string]string, excludeUser string) int {
 	n := 0
-	for author, state := range collapseReviewsToLatest(reviews) {
+	for author, state := range collapsed {
 		if state == "APPROVED" && author != excludeUser {
 			n++
 		}
@@ -315,9 +320,9 @@ func countApprovals(reviews []domain.Review, excludeUser string) int {
 	return n
 }
 
-func countAllApprovals(reviews []domain.Review) int {
+func countAllApprovals(collapsed map[string]string) int {
 	n := 0
-	for _, state := range collapseReviewsToLatest(reviews) {
+	for _, state := range collapsed {
 		if state == "APPROVED" {
 			n++
 		}
@@ -325,17 +330,17 @@ func countAllApprovals(reviews []domain.Review) int {
 	return n
 }
 
-func hasUserReviewed(reviews []domain.Review, user string) bool {
-	_, ok := collapseReviewsToLatest(reviews)[user]
+func hasUserReviewed(collapsed map[string]string, user string) bool {
+	_, ok := collapsed[user]
 	return ok
 }
 
-func hasDismissedReview(reviews []domain.Review, user string) bool {
-	return collapseReviewsToLatest(reviews)[user] == "DISMISSED"
+func hasDismissedReview(collapsed map[string]string, user string) bool {
+	return collapsed[user] == "DISMISSED"
 }
 
-func hasChangesRequested(reviews []domain.Review) bool {
-	for _, state := range collapseReviewsToLatest(reviews) {
+func hasChangesRequested(collapsed map[string]string) bool {
+	for _, state := range collapsed {
 		if state == "CHANGES_REQUESTED" {
 			return true
 		}

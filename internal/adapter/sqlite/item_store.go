@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -89,27 +90,38 @@ func (s *itemStore) ListRanked(ctx context.Context, limit int) ([]domain.Item, e
 
 func (s *itemStore) Count(ctx context.Context) (int, error) {
 	var n int
-	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE dismissed = 0`).Scan(&n)
-	return n, err
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM items WHERE dismissed = 0`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("Count: %w", err)
+	}
+	return n, nil
 }
 
 func (s *itemStore) Dismiss(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET dismissed = 1, updated_at = ? WHERE id = ?`, time.Now().UTC(), id,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("Dismiss %s: %w", id, err)
+	}
+	return nil
 }
 
 func (s *itemStore) Delete(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM items WHERE id = ?`, id)
-	return err
+	if err != nil {
+		return fmt.Errorf("Delete %s: %w", id, err)
+	}
+	return nil
 }
 
 func (s *itemStore) MarkSeen(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE items SET seen = 1, updated_at = ? WHERE id = ?`, time.Now().UTC(), id,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("MarkSeen %s: %w", id, err)
+	}
+	return nil
 }
 
 func (s *itemStore) MarkSeenByPR(ctx context.Context, prOwner, prRepo string, prNumber int) error {
@@ -118,7 +130,10 @@ func (s *itemStore) MarkSeenByPR(ctx context.Context, prOwner, prRepo string, pr
 		 WHERE source = ? AND pr_owner = ? AND pr_repo = ? AND external_id = ?`,
 		time.Now().UTC(), string(domain.ProviderGitHub), prOwner, prRepo, strconv.Itoa(prNumber),
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("MarkSeenByPR %s/%s#%d: %w", prOwner, prRepo, prNumber, err)
+	}
+	return nil
 }
 
 func (s *itemStore) MarkSeenByJiraKey(ctx context.Context, jiraKey string) error {
@@ -127,7 +142,10 @@ func (s *itemStore) MarkSeenByJiraKey(ctx context.Context, jiraKey string) error
 		 WHERE source = ? AND external_id = ?`,
 		time.Now().UTC(), string(domain.ProviderJira), jiraKey,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("MarkSeenByJiraKey %s: %w", jiraKey, err)
+	}
+	return nil
 }
 
 type reviewEntry struct {
@@ -188,11 +206,16 @@ func (s *itemStore) RescoreAll(ctx context.Context, weights map[domain.ItemType]
 
 	for _, r := range toRescore {
 		baseScore := weights[r.itemType]
-		prereqMet := computePrerequisitesMet(r.metadata, prereqSet)
+		var prereqMet int
+		if strings.HasPrefix(string(r.itemType), "pr_") {
+			prereqMet = computePrerequisitesMet(r.metadata, prereqSet)
+		} else {
+			prereqMet = 1
+		}
 		hours := now.Sub(r.createdAt).Hours()
 		var ageBoost float64
 		if prereqMet == 1 {
-			ageBoost = math.Min(math.Floor(hours)*ageMultiplier, maxAgeBoost)
+			ageBoost = math.Max(0, math.Min(math.Floor(hours)*ageMultiplier, maxAgeBoost))
 		}
 		total := float64(baseScore) + ageBoost
 		if _, err := stmt.ExecContext(ctx, baseScore, prereqMet, ageBoost, total, now.UTC(), r.id); err != nil {

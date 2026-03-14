@@ -36,6 +36,9 @@ func (f *Fetcher) Fetch(ctx context.Context, integration domain.Integration, spa
 			return nil, fmt.Errorf("fetch issues for space %s: %w", space.Owner, err)
 		}
 		for _, issue := range issues {
+			if issue == nil {
+				continue
+			}
 			fetched := f.processIssue(issue, integration.LastSyncedAt)
 			items = append(items, fetched...)
 		}
