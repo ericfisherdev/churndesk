@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,11 +12,19 @@ import (
 	"github.com/churndesk/churndesk/internal/domain/port"
 )
 
+// fetcherUpdater is an optional interface that fetchers may implement to receive
+// live updates to teammate lists and minimum review counts without being recreated.
+type fetcherUpdater interface {
+	UpdateTeammates([]domain.Teammate)
+	UpdateMinReviewCount(int)
+}
+
 // Scheduler manages one poll goroutine per integration.
 // Each goroutine calls Worker.RunOnce on a configurable interval.
 type Scheduler struct {
 	items        port.ItemStore
 	integrations port.IntegrationStore
+	settings     port.SettingsStore
 	fetchers     map[domain.Provider]port.Fetcher
 
 	mu      sync.Mutex
@@ -24,10 +33,11 @@ type Scheduler struct {
 }
 
 // NewScheduler constructs a Scheduler. fetchers maps provider to its Fetcher implementation.
-func NewScheduler(items port.ItemStore, integrations port.IntegrationStore, fetchers map[domain.Provider]port.Fetcher) *Scheduler {
+func NewScheduler(items port.ItemStore, integrations port.IntegrationStore, settings port.SettingsStore, fetchers map[domain.Provider]port.Fetcher) *Scheduler {
 	return &Scheduler{
 		items:        items,
 		integrations: integrations,
+		settings:     settings,
 		fetchers:     fetchers,
 		cancels:      make(map[int]context.CancelFunc),
 	}
@@ -124,6 +134,12 @@ func (s *Scheduler) Reload(_ context.Context) error {
 		return nil // Start has not been called yet
 	}
 
+	// Push fresh teammate and setting values into any fetcher that supports live updates.
+	if err := s.refreshFetchers(serverCtx); err != nil {
+		log.Printf("scheduler: refresh fetchers: %v", err)
+		// Non-fatal: workers restart with their current (possibly stale) values.
+	}
+
 	integrations, err := s.integrations.ListIntegrations(serverCtx)
 	if err != nil {
 		return err
@@ -133,6 +149,38 @@ func (s *Scheduler) Reload(_ context.Context) error {
 			continue
 		}
 		s.startWorker(serverCtx, ig)
+	}
+	return nil
+}
+
+// refreshFetchers loads the current teammate list and minimum review count from the
+// database and pushes them into any fetcher that implements fetcherUpdater.
+func (s *Scheduler) refreshFetchers(ctx context.Context) error {
+	integrations, err := s.integrations.ListIntegrations(ctx)
+	if err != nil {
+		return err
+	}
+	var teammates []domain.Teammate
+	for _, ig := range integrations {
+		ts, err := s.integrations.ListTeammates(ctx, ig.ID)
+		if err != nil {
+			return err
+		}
+		teammates = append(teammates, ts...)
+	}
+
+	minReviewCount := 1
+	if val, err := s.settings.Get(ctx, domain.SettingMinReviewCount); err == nil && val != "" {
+		if n, err := strconv.Atoi(val); err == nil && n > 0 {
+			minReviewCount = n
+		}
+	}
+
+	for _, f := range s.fetchers {
+		if u, ok := f.(fetcherUpdater); ok {
+			u.UpdateTeammates(teammates)
+			u.UpdateMinReviewCount(minReviewCount)
+		}
 	}
 	return nil
 }

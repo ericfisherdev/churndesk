@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
@@ -23,12 +24,15 @@ var _ port.Fetcher = (*Fetcher)(nil)
 type Fetcher struct {
 	client            port.GitHubClient
 	authenticatedUser string
-	teammates         []domain.Teammate
-	minReviewCount    int
+
+	mu             sync.RWMutex
+	teammates      []domain.Teammate
+	minReviewCount int
 }
 
-// NewFetcher constructs a GitHub Fetcher. teammates and minReviewCount are loaded
-// from the database by the app worker before calling Fetch.
+// NewFetcher constructs a GitHub Fetcher with an initial teammate list and minimum
+// review count. Both values can be updated live via UpdateTeammates and
+// UpdateMinReviewCount without recreating the fetcher.
 func NewFetcher(client port.GitHubClient, authenticatedUser string, teammates []domain.Teammate, minReviewCount int) *Fetcher {
 	return &Fetcher{
 		client:            client,
@@ -38,11 +42,32 @@ func NewFetcher(client port.GitHubClient, authenticatedUser string, teammates []
 	}
 }
 
+// UpdateTeammates replaces the teammate list used by Fetch. Safe to call
+// concurrently with Fetch.
+func (f *Fetcher) UpdateTeammates(teammates []domain.Teammate) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.teammates = teammates
+}
+
+// UpdateMinReviewCount replaces the minimum review count used by Fetch. Safe to
+// call concurrently with Fetch.
+func (f *Fetcher) UpdateMinReviewCount(n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.minReviewCount = n
+}
+
 // Fetch implements port.Fetcher. integration.LastSyncedAt is nil on first sync;
 // fetchers treat nil as "match nothing" for comment-based items.
 func (f *Fetcher) Fetch(ctx context.Context, integration domain.Integration, spaces []domain.Space) ([]domain.Item, error) {
-	teammateSet := make(map[string]struct{}, len(f.teammates))
-	for _, t := range f.teammates {
+	f.mu.RLock()
+	teammates := f.teammates
+	minReviewCount := f.minReviewCount
+	f.mu.RUnlock()
+
+	teammateSet := make(map[string]struct{}, len(teammates))
+	for _, t := range teammates {
 		teammateSet[t.GitHubUsername] = struct{}{}
 	}
 
@@ -56,7 +81,7 @@ func (f *Fetcher) Fetch(ctx context.Context, integration domain.Integration, spa
 			return nil, fmt.Errorf("list PRs for %s/%s: %w", space.Owner, space.Name, err)
 		}
 		for _, pr := range prs {
-			fetched, err := f.processPR(ctx, pr, space, teammateSet, integration.LastSyncedAt)
+			fetched, err := f.processPR(ctx, pr, space, teammateSet, minReviewCount, integration.LastSyncedAt)
 			if err != nil {
 				return nil, err
 			}
@@ -71,6 +96,7 @@ func (f *Fetcher) processPR(
 	pr *domain.PRDetail,
 	space domain.Space,
 	teammateSet map[string]struct{},
+	minReviewCount int,
 	lastSyncedAt *time.Time,
 ) ([]domain.Item, error) {
 	reviews, err := f.client.ListPRReviews(ctx, space.Owner, space.Name, pr.Number)
@@ -98,7 +124,7 @@ func (f *Fetcher) processPR(
 	if isTeammate && !isOwnPR {
 		userAlreadyReviewed := hasUserReviewed(reviews, f.authenticatedUser)
 		approvalCount := countApprovals(reviews, f.authenticatedUser)
-		if !userAlreadyReviewed && approvalCount < f.minReviewCount {
+		if !userAlreadyReviewed && approvalCount < minReviewCount {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:review_needed:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
@@ -177,7 +203,7 @@ func (f *Fetcher) processPR(
 				UpdatedAt:  pr.UpdatedAt,
 			})
 		}
-		if !hasChangesRequested(reviews) && countAllApprovals(reviews) >= f.minReviewCount {
+		if !hasChangesRequested(reviews) && countAllApprovals(reviews) >= minReviewCount {
 			items = append(items, domain.Item{
 				ID:         fmt.Sprintf("github:approved:%s/%s:%d", space.Owner, space.Name, pr.Number),
 				Source:     "github",
