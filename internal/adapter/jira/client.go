@@ -62,11 +62,19 @@ func (c *Client) GetIssue(ctx context.Context, key string) (*domain.JiraIssue, e
 //
 // Returns an empty slice when there are no comments.
 func (c *Client) ListIssueComments(ctx context.Context, key string) ([]domain.Comment, error) {
-	page, _, err := c.rest.Issue.Comment.Gets(ctx, key, "created", nil, 0, 100)
-	if err != nil {
-		return nil, fmt.Errorf("list comments for jira issue %s: %w", key, err)
+	const pageSize = 100
+	var out []domain.Comment
+	for startAt := 0; ; startAt += pageSize {
+		page, _, err := c.rest.Issue.Comment.Gets(ctx, key, "created", nil, startAt, pageSize)
+		if err != nil {
+			return nil, fmt.Errorf("list comments for jira issue %s (startAt=%d): %w", key, startAt, err)
+		}
+		out = append(out, commentSchemesToDomain(page)...)
+		if page == nil || startAt+pageSize >= page.Total {
+			break
+		}
 	}
-	return commentSchemesToDomain(page), nil
+	return out, nil
 }
 
 // PostComment adds a plain-text comment to a Jira issue using the ADF document format.
@@ -81,15 +89,21 @@ func (c *Client) PostComment(ctx context.Context, key string, body string) error
 	return nil
 }
 
-// SearchIssues executes a JQL query and returns matching issues.
+// SearchIssues executes a JQL query and returns all matching issues.
 func (c *Client) SearchIssues(ctx context.Context, jql string) ([]*domain.JiraIssue, error) {
-	results, _, err := c.rest.Issue.Search.Get(ctx, jql, nil, nil, 0, 100, "")
-	if err != nil {
-		return nil, fmt.Errorf("search jira issues (jql=%q): %w", jql, err)
-	}
-	out := make([]*domain.JiraIssue, 0, len(results.Issues))
-	for _, issue := range results.Issues {
-		out = append(out, issueSchemeToJiraIssue(issue))
+	const pageSize = 100
+	var out []*domain.JiraIssue
+	for startAt := 0; ; startAt += pageSize {
+		results, _, err := c.rest.Issue.Search.Get(ctx, jql, nil, nil, startAt, pageSize, "")
+		if err != nil {
+			return nil, fmt.Errorf("search jira issues (jql=%q, startAt=%d): %w", jql, startAt, err)
+		}
+		for _, issue := range results.Issues {
+			out = append(out, issueSchemeToJiraIssue(issue))
+		}
+		if results == nil || startAt+pageSize >= results.Total {
+			break
+		}
 	}
 	return out, nil
 }
@@ -123,7 +137,7 @@ func (c *Client) GetActiveSprintIssues(ctx context.Context, boardID int) ([]*dom
 		return nil, fmt.Errorf("list sprints for board %d: %w", boardID, err)
 	}
 	if len(sprintPage.Values) == 0 {
-		return nil, nil
+		return []*domain.JiraIssue{}, nil
 	}
 
 	activeSprint := sprintPage.Values[0]
