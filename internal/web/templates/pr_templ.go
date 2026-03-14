@@ -800,9 +800,20 @@ func ErrorPage(message string) templ.Component {
 	})
 }
 
+// anyCheckFailing returns true when at least one completed check has a
+// problematic conclusion. Only completed checks are considered so in-progress
+// runs don't trigger the "CI failing" badge.
+//
+// allChecksPassing uses a stricter rule: any conclusion other than "success"
+// (including in-progress/empty) counts as not passing, so the badge is only
+// shown when every check has explicitly succeeded.
 func anyCheckFailing(checks []domain.CheckRun) bool {
 	for _, c := range checks {
-		if c.Status == "completed" && (c.Conclusion == "failure" || c.Conclusion == "action_required") {
+		if c.Status != "completed" {
+			continue
+		}
+		switch c.Conclusion {
+		case "failure", "action_required", "cancelled", "timed_out", "stale":
 			return true
 		}
 	}

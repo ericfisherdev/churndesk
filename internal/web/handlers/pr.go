@@ -124,13 +124,20 @@ func (h *PRHandler) PostComment(w http.ResponseWriter, r *http.Request) {
 	owner := r.PathValue("owner")
 	repo := r.PathValue("repo")
 	number, err := strconv.Atoi(r.PathValue("number"))
-	if err != nil || r.FormValue("body") == "" {
-		templates.ErrorPartial("Invalid request").Render(r.Context(), w) //nolint:errcheck
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		templates.ErrorPartial("Invalid PR number").Render(r.Context(), w) //nolint:errcheck
+		return
+	}
+	if r.FormValue("body") == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		templates.ErrorPartial("Comment body cannot be empty").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
 
 	if err := h.gh.PostPRComment(r.Context(), owner, repo, number, r.FormValue("body")); err != nil {
 		log.Printf("post PR comment: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPartial("Failed to post comment").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
@@ -167,6 +174,7 @@ func (h *PRHandler) SubmitReview(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.gh.SubmitReview(r.Context(), owner, repo, number, verdict, r.FormValue("body")); err != nil {
 		log.Printf("submit review: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPartial("Failed to submit review").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
@@ -197,6 +205,7 @@ func (h *PRHandler) RequestReviewers(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.gh.RequestReviewers(r.Context(), owner, repo, number, logins); err != nil {
 		log.Printf("request reviewers: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		templates.ErrorPartial("Failed to request reviewers").Render(r.Context(), w) //nolint:errcheck
 		return
 	}
