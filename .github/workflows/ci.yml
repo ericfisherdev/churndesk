@@ -1,0 +1,29 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@latest
+
+      - name: Generate templates
+        run: templ generate ./internal/web/templates/...
+
+      - name: Test
+        run: CGO_ENABLED=1 go test ./...
+
+      - name: Build
+        run: CGO_ENABLED=1 go build ./cmd/churndesk/...
