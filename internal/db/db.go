@@ -2,6 +2,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"fmt"
@@ -21,19 +22,20 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
-	if _, err := conn.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		conn.Close()
+	ctx := context.Background()
+	if _, err := conn.ExecContext(ctx, "PRAGMA journal_mode=WAL"); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("set WAL mode: %w", err)
 	}
-	if err := runMigrations(conn); err != nil {
-		conn.Close()
+	if err := runMigrations(ctx, conn); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 	return conn, nil
 }
 
-func runMigrations(conn *sql.DB) error {
-	if _, err := conn.Exec(
+func runMigrations(ctx context.Context, conn *sql.DB) error {
+	if _, err := conn.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY)`,
 	); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
@@ -52,7 +54,7 @@ func runMigrations(conn *sql.DB) error {
 		version := strings.TrimSuffix(e.Name(), ".sql")
 
 		var n int
-		if err := conn.QueryRow(
+		if err := conn.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, version,
 		).Scan(&n); err != nil {
 			return fmt.Errorf("check migration %s: %w", version, err)
@@ -65,10 +67,10 @@ func runMigrations(conn *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("read migration %s: %w", e.Name(), err)
 		}
-		if err := execStatements(conn, string(content)); err != nil {
+		if err := execStatements(ctx, conn, string(content)); err != nil {
 			return fmt.Errorf("exec migration %s: %w", e.Name(), err)
 		}
-		if _, err := conn.Exec(
+		if _, err := conn.ExecContext(ctx,
 			`INSERT INTO schema_migrations (version) VALUES (?)`, version,
 		); err != nil {
 			return fmt.Errorf("record migration %s: %w", version, err)
@@ -77,13 +79,13 @@ func runMigrations(conn *sql.DB) error {
 	return nil
 }
 
-func execStatements(conn *sql.DB, sql string) error {
+func execStatements(ctx context.Context, conn *sql.DB, sql string) error {
 	for _, stmt := range strings.Split(sql, ";") {
 		stmt = strings.TrimSpace(stmt)
 		if stmt == "" {
 			continue
 		}
-		if _, err := conn.Exec(stmt); err != nil {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("statement %q: %w", truncate(stmt, 60), err)
 		}
 	}

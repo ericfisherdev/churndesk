@@ -14,7 +14,7 @@ func TestOpen_WALModeAndMigrations(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.db")
 	conn, err := db.Open(path)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	var mode string
 	require.NoError(t, conn.QueryRow("PRAGMA journal_mode").Scan(&mode))
@@ -40,11 +40,11 @@ func TestOpen_MigrationIdempotent(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.db")
 	conn1, err := db.Open(path)
 	require.NoError(t, err)
-	conn1.Close()
+	_ = conn1.Close()
 
 	conn2, err := db.Open(path)
 	require.NoError(t, err)
-	defer conn2.Close()
+	defer func() { _ = conn2.Close() }()
 
 	var count int
 	require.NoError(t, conn2.QueryRow("SELECT COUNT(*) FROM settings").Scan(&count))

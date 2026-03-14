@@ -78,8 +78,8 @@ func (s *Scheduler) startWorker(parent context.Context, integration domain.Integ
 			return
 		}
 		// Initial sync immediately on start
-		if err := worker.RunOnce(workerCtx, integration, spaces); err != nil {
-			log.Printf("scheduler: initial sync for integration %d: %v", integration.ID, err)
+		if runErr := worker.RunOnce(workerCtx, integration, spaces); runErr != nil {
+			log.Printf("scheduler: initial sync for integration %d: %v", integration.ID, runErr)
 		}
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()

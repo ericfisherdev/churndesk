@@ -36,7 +36,7 @@ func (f *Fetcher) Fetch(ctx context.Context, integration domain.Integration, spa
 			return nil, fmt.Errorf("fetch issues for space %s: %w", space.Owner, err)
 		}
 		for _, issue := range issues {
-			fetched := f.processIssue(issue, space, integration.LastSyncedAt)
+			fetched := f.processIssue(issue, integration.LastSyncedAt)
 			items = append(items, fetched...)
 		}
 	}
@@ -54,7 +54,7 @@ func (f *Fetcher) fetchIssues(ctx context.Context, space domain.Space) ([]*domai
 	}
 }
 
-func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, lastSyncedAt *time.Time) []domain.Item {
+func (f *Fetcher) processIssue(issue *domain.JiraIssue, lastSyncedAt *time.Time) []domain.Item {
 	var items []domain.Item
 	metadata := buildJiraMetadata(issue)
 
@@ -67,11 +67,11 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, last
 	// Note: the item is upserted on every sync while assigned to me. Dismissal handles resolution.
 	if issue.Assignee == f.accountID {
 		items = append(items, domain.Item{
-			ID:         fmt.Sprintf("jira:status_change:%s", issue.Key),
+			ID:         "jira:status_change:" + issue.Key,
 			Source:     "jira",
 			Type:       domain.ItemTypeJiraStatusChange,
 			ExternalID: issue.Key,
-			Title:      fmt.Sprintf("Status update: %s", issue.Summary),
+			Title:      "Status update: " + issue.Summary,
 			Metadata:   metadata,
 		})
 	}
@@ -79,11 +79,11 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, last
 	// jira_new_bug: Bug issue type created after last sync.
 	if issue.IssueType == "Bug" && issue.CreatedAt.After(*lastSyncedAt) {
 		items = append(items, domain.Item{
-			ID:         fmt.Sprintf("jira:new_bug:%s", issue.Key),
+			ID:         "jira:new_bug:" + issue.Key,
 			Source:     "jira",
 			Type:       domain.ItemTypeJiraNewBug,
 			ExternalID: issue.Key,
-			Title:      fmt.Sprintf("New bug: %s", issue.Summary),
+			Title:      "New bug: " + issue.Summary,
 			Metadata:   metadata,
 		})
 	}
@@ -92,11 +92,11 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, last
 	if iHaveCommented(issue.Comments, f.accountID) {
 		if newest := firstNewCommentFrom(issue.Comments, f.accountID, *lastSyncedAt); newest != nil {
 			items = append(items, domain.Item{
-				ID:         fmt.Sprintf("jira:comment:%s", issue.Key),
+				ID:         "jira:comment:" + issue.Key,
 				Source:     "jira",
 				Type:       domain.ItemTypeJiraComment,
 				ExternalID: issue.Key,
-				Title:      fmt.Sprintf("New comment: %s", issue.Summary),
+				Title:      "New comment: " + issue.Summary,
 				Metadata:   buildCommentJiraMetadata(metadata, newest),
 			})
 		}
@@ -105,7 +105,7 @@ func (f *Fetcher) processIssue(issue *domain.JiraIssue, space domain.Space, last
 	// Set URL and timestamps on all items
 	for i := range items {
 		if items[i].URL == "" {
-			items[i].URL = fmt.Sprintf("/jira/%s", issue.Key)
+			items[i].URL = "/jira/" + issue.Key
 		}
 		items[i].CreatedAt = issue.CreatedAt
 		items[i].UpdatedAt = issue.UpdatedAt

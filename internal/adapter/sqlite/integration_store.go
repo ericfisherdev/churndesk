@@ -62,7 +62,7 @@ func (s *integrationStore) ListIntegrations(ctx context.Context) ([]domain.Integ
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.Integration
 	for rows.Next() {
 		i, err := scanIntegration(rows)
@@ -103,7 +103,7 @@ func (s *integrationStore) ListSpaces(ctx context.Context, integrationID int) ([
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.Space
 	for rows.Next() {
 		var sp domain.Space
@@ -153,7 +153,7 @@ func (s *integrationStore) ListTeammates(ctx context.Context, integrationID int)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.Teammate
 	for rows.Next() {
 		var t domain.Teammate
@@ -186,7 +186,7 @@ func (s *integrationStore) ListPrerequisites(ctx context.Context, integrationID 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []domain.ReviewPrerequisite
 	for rows.Next() {
 		var p domain.ReviewPrerequisite

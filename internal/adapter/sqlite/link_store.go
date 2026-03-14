@@ -30,7 +30,7 @@ func (s *linkStore) UpsertPRJiraLinks(ctx context.Context, prOwner, prRepo strin
 	if err != nil {
 		return fmt.Errorf("prepare link upsert: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 
 	for _, key := range jiraKeys {
 		if _, err := stmt.ExecContext(ctx, prOwner, prRepo, prNumber, prTitle, key); err != nil {
@@ -48,7 +48,7 @@ func (s *linkStore) GetJiraKeysForPR(ctx context.Context, prOwner, prRepo string
 	if err != nil {
 		return nil, fmt.Errorf("get jira keys: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var keys []string
 	for rows.Next() {
 		var k string
@@ -68,7 +68,7 @@ func (s *linkStore) GetPRsForJiraKey(ctx context.Context, jiraKey string) ([]dom
 	if err != nil {
 		return nil, fmt.Errorf("get prs for jira key: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var refs []domain.PRRef
 	for rows.Next() {
 		var r domain.PRRef

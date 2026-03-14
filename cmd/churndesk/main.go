@@ -36,7 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("open db: %v", err)
 	}
-	defer conn.Close()
 
 	itemStore := sqlite.NewItemStore(conn)
 	linkStore := sqlite.NewLinkStore(conn)
@@ -87,8 +86,10 @@ func main() {
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
+		_ = conn.Close()
 		log.Fatalf("static fs: %v", err)
 	}
+	defer func() { _ = conn.Close() }()
 
 	srv := web.NewServer(staticFS, feedHandler, prHandler, jiraHandler, settingsHandler, gate)
 	httpServer := &http.Server{
@@ -156,7 +157,7 @@ func loadMinReviewCount(store port.SettingsStore) int {
 
 func loadTeammates(store port.IntegrationStore) []domain.Teammate {
 	integrations, _ := store.ListIntegrations(context.Background())
-	var out []domain.Teammate
+	out := make([]domain.Teammate, 0, len(integrations))
 	for _, ig := range integrations {
 		ts, _ := store.ListTeammates(context.Background(), ig.ID)
 		out = append(out, ts...)
