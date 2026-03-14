@@ -198,6 +198,29 @@ func (s *integrationStore) DeleteTeammate(ctx context.Context, id int) error {
 	return err
 }
 
+// ReplaceTeammates atomically deletes all teammates for the given integration and
+// inserts the provided replacement set. Either all changes commit or none do.
+func (s *integrationStore) ReplaceTeammates(ctx context.Context, integrationID int, teammates []domain.Teammate) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM teammates WHERE integration_id = ?`, integrationID); err != nil {
+		return fmt.Errorf("delete teammates: %w", err)
+	}
+	for _, t := range teammates {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO teammates (integration_id, github_username, display_name) VALUES (?,?,?)`,
+			t.IntegrationID, t.GitHubUsername, t.DisplayName,
+		); err != nil {
+			return fmt.Errorf("create teammate: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
 func (s *integrationStore) CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO review_prerequisites (integration_id, github_username, display_name) VALUES (?,?,?)`,

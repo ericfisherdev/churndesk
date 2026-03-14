@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -28,6 +29,7 @@ type SettingsIntegrationStore interface {
 	CreateTeammate(ctx context.Context, t domain.Teammate) error
 	ListTeammates(ctx context.Context, integrationID int) ([]domain.Teammate, error)
 	DeleteTeammate(ctx context.Context, id int) error
+	ReplaceTeammates(ctx context.Context, integrationID int, teammates []domain.Teammate) error
 	CreatePrerequisite(ctx context.Context, p domain.ReviewPrerequisite) error
 	ListPrerequisites(ctx context.Context, integrationID int) ([]domain.ReviewPrerequisite, error)
 	DeletePrerequisite(ctx context.Context, id int) error
@@ -173,19 +175,9 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	existing, err := h.integrations.ListTeammates(r.Context(), integrationID)
-	if err != nil {
-		log.Printf("list teammates for integration %d: %v", integrationID, err)
-		h.respondError(w, "Failed to load teammates", http.StatusInternalServerError)
-		return
-	}
-	for _, t := range existing {
-		if err := h.integrations.DeleteTeammate(r.Context(), t.ID); err != nil {
-			log.Printf("delete teammate %d: %v", t.ID, err)
-		}
-	}
 	usernames := r.Form["github_username"]
 	displayNames := r.Form["display_name"]
+	teammates := make([]domain.Teammate, 0, len(usernames))
 	for i, u := range usernames {
 		if u == "" {
 			continue
@@ -194,13 +186,16 @@ func (h *SettingsHandler) SaveTeammates(w http.ResponseWriter, r *http.Request) 
 		if i < len(displayNames) {
 			dn = displayNames[i]
 		}
-		if err := h.integrations.CreateTeammate(r.Context(), domain.Teammate{
+		teammates = append(teammates, domain.Teammate{
 			IntegrationID:  integrationID,
 			GitHubUsername: u,
 			DisplayName:    dn,
-		}); err != nil {
-			log.Printf("create teammate %s for integration %d: %v", u, integrationID, err)
-		}
+		})
+	}
+	if err := h.integrations.ReplaceTeammates(r.Context(), integrationID, teammates); err != nil {
+		log.Printf("replace teammates for integration %d: %v", integrationID, err)
+		h.respondError(w, "Failed to save teammates", http.StatusInternalServerError)
+		return
 	}
 	h.respondSuccess(w)
 }
@@ -261,6 +256,7 @@ func (h *SettingsHandler) SaveWeights(w http.ResponseWriter, r *http.Request) {
 		domain.ItemTypeJiraStatusChange, domain.ItemTypeJiraComment,
 		domain.ItemTypePRApproved,
 	}
+	var writeErr bool
 	for _, t := range allTypes {
 		key := "weight_" + string(t)
 		if val := r.FormValue(key); val != "" {
@@ -273,8 +269,13 @@ func (h *SettingsHandler) SaveWeights(w http.ResponseWriter, r *http.Request) {
 			}
 			if err := h.settings.SetCategoryWeight(r.Context(), t, w8); err != nil {
 				log.Printf("set category weight %s=%d: %v", t, w8, err)
+				writeErr = true
 			}
 		}
+	}
+	if writeErr {
+		h.respondError(w, "Failed to save some weights", http.StatusInternalServerError)
+		return
 	}
 	h.respondSuccess(w)
 }
@@ -301,13 +302,19 @@ func (h *SettingsHandler) SaveGeneral(w http.ResponseWriter, r *http.Request) {
 		domain.SettingMaxAgeBoost:         r.FormValue("max_age_boost"),
 		domain.SettingMinReviewCount:      r.FormValue("min_review_count"),
 	}
+	var writeErr bool
 	for k, v := range settings {
 		if v == "" {
 			continue
 		}
 		if err := h.settings.Set(r.Context(), k, v); err != nil {
 			log.Printf("set setting %s: %v", k, err)
+			writeErr = true
 		}
+	}
+	if writeErr {
+		h.respondError(w, "Failed to save some settings", http.StatusInternalServerError)
+		return
 	}
 	h.respondSuccess(w)
 }
@@ -379,8 +386,8 @@ func parseIntegrationID(w http.ResponseWriter, r *http.Request) (int, bool) {
 		return 0, false
 	}
 	id, err := strconv.Atoi(val)
-	if err != nil {
-		http.Error(w, "invalid integration_id", http.StatusBadRequest)
+	if err != nil || id <= 0 {
+		http.Error(w, "invalid integration_id: must be positive", http.StatusBadRequest)
 		return 0, false
 	}
 	return id, true
@@ -416,15 +423,15 @@ func (h *SettingsHandler) buildPageData(ctx context.Context) (templates.Settings
 	for _, integration := range integrations {
 		spaces, err := h.integrations.ListSpaces(ctx, integration.ID)
 		if err != nil {
-			log.Printf("buildPageData: list spaces for integration %d: %v", integration.ID, err)
+			return templates.SettingsPageData{}, fmt.Errorf("list spaces for integration %d: %w", integration.ID, err)
 		}
 		teammates, err := h.integrations.ListTeammates(ctx, integration.ID)
 		if err != nil {
-			log.Printf("buildPageData: list teammates for integration %d: %v", integration.ID, err)
+			return templates.SettingsPageData{}, fmt.Errorf("list teammates for integration %d: %w", integration.ID, err)
 		}
 		prereqs, err := h.integrations.ListPrerequisites(ctx, integration.ID)
 		if err != nil {
-			log.Printf("buildPageData: list prerequisites for integration %d: %v", integration.ID, err)
+			return templates.SettingsPageData{}, fmt.Errorf("list prerequisites for integration %d: %w", integration.ID, err)
 		}
 		igs = append(igs, templates.IntegrationWithSpaces{
 			Integration:   integration,
