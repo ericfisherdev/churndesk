@@ -254,7 +254,7 @@ func FeedItem(item domain.Item) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-trigger=\"click\" hx-swap=\"none\" style=\"display:block;text-decoration:none;color:inherit\"><div class=\"flex gap-8 items-center\" style=\"flex-wrap:wrap\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" hx-trigger=\"click\" hx-swap=\"none\" style=\"display:block;text-decoration:none;color:inherit\"><div class=\"flex gap-2 items-center\" style=\"flex-wrap:wrap\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
