@@ -167,7 +167,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"comment\" style=\"padding:12px 0;border-top:1px solid var(--border)\"><div class=\"flex gap-8 items-center\" style=\"margin-bottom:6px\"><span style=\"font-weight:600;font-size:13px\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<div class=\"comment\" style=\"padding:12px 0;border-top:1px solid var(--border)\"><div class=\"flex gap-2 items-center\" style=\"margin-bottom:6px\"><span style=\"font-weight:600;font-size:13px\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

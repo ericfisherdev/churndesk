@@ -51,7 +51,7 @@ templ FeedItem(item domain.Item) {
 			hx-trigger="click"
 			hx-swap="none"
 			style="display:block;text-decoration:none;color:inherit">
-			<div class="flex gap-8 items-center" style="flex-wrap:wrap">
+			<div class="flex gap-2 items-center" style="flex-wrap:wrap">
 				@TypePill(item.Type)
 				@SourcePill(item.Source, item.PROwner, item.PRRepo)
 			</div>
