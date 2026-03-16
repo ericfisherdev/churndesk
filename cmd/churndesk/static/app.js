@@ -35,7 +35,7 @@ function churndesk() {
           if (data.syncError) {
             this.addToast(data.syncError, 'error');
           }
-          if (data.saved) {
+          if (data.settingsSaved) {
             this.addToast('Settings saved', 'success');
           }
         } catch (_e) {
