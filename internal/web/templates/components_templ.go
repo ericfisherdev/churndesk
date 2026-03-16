@@ -306,7 +306,7 @@ func typeLabel(t domain.ItemType) string {
 	case domain.ItemTypePRChangesRequested:
 		return "Changes requested"
 	case domain.ItemTypePRNewComment:
-		return "New comment"
+		return "PR comment"
 	case domain.ItemTypePRCIFailing:
 		return "CI failing"
 	case domain.ItemTypePRApproved:
@@ -314,7 +314,7 @@ func typeLabel(t domain.ItemType) string {
 	case domain.ItemTypeJiraStatusChange:
 		return "Status update"
 	case domain.ItemTypeJiraComment:
-		return "New comment"
+		return "Jira comment"
 	case domain.ItemTypeJiraNewBug:
 		return "New bug"
 	default:
@@ -392,6 +392,23 @@ func sanitizeURL(rawURL string) string {
 		}
 	}
 	return buf.String()
+}
+
+// itemDetailURL returns the internal detail-view URL for the given item.
+// GitHub items route to /prs/:owner/:repo/:number, Jira items to /jira/:key.
+// Unknown sources fall back to the sanitized external URL.
+func itemDetailURL(item domain.Item) string {
+	switch item.Source {
+	case "github":
+		if item.PROwner != "" && item.PRRepo != "" && item.ExternalID != "" {
+			return fmt.Sprintf("/prs/%s/%s/%s", item.PROwner, item.PRRepo, item.ExternalID)
+		}
+	case "jira":
+		if item.ExternalID != "" {
+			return fmt.Sprintf("/jira/%s", item.ExternalID)
+		}
+	}
+	return sanitizeURL(item.URL)
 }
 
 func extractLatestComment(metadata string) string {
