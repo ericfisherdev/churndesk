@@ -20,12 +20,14 @@ templ Layout(title string) {
 		<body x-data="churndesk()" x-init="init()">
 			<header class="header">
 				<a href="/" class="header-logo">Churndesk</a>
+				<span class="sync-status" id="sync-status" aria-live="polite" aria-atomic="true" role="status" style="font-size:12px;color:var(--muted)"></span>
 				<div class="header-spacer"></div>
 				<div class="header-actions">
 					<button
 						class="btn"
 						hx-post="/sync"
 						hx-swap="none"
+						hx-on::after-request="if(event.detail.xhr.status>=200&&event.detail.xhr.status<300){document.getElementById('sync-status').textContent='Synced just now'}"
 						title="Sync now"
 						aria-label="Sync now">
 						↻

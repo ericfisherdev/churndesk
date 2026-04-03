@@ -4,8 +4,11 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
+
+	sqlite3 "github.com/mattn/go-sqlite3"
 
 	"github.com/churndesk/churndesk/internal/domain"
 	"github.com/churndesk/churndesk/internal/domain/port"
@@ -25,6 +28,10 @@ func (s *integrationStore) CreateIntegration(ctx context.Context, i domain.Integ
 		string(i.Provider), i.AccessToken, i.BaseURL, i.Username, i.AccountID, i.PollIntervalSeconds, boolToInt(i.Enabled),
 	)
 	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return 0, domain.ErrDuplicateProvider
+		}
 		return 0, fmt.Errorf("create integration: %w", err)
 	}
 	id, _ := res.LastInsertId()
