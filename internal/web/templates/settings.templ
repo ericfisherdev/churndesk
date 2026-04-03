@@ -37,45 +37,43 @@ templ SettingsPage(d SettingsPageData) {
 templ integrationSection(d SettingsPageData, provider domain.Provider) {
 	<div class="settings-section">
 		<h2>{ providerLabel(provider) } Integration</h2>
-		for _, ig := range d.Integrations {
-			if ig.Provider == provider {
-				<form hx-post="/settings/integration" hx-swap="none" style="margin-bottom:20px">
-					<input type="hidden" name="id" value={ strconv.Itoa(ig.ID) }/>
-					<input type="hidden" name="provider" value={ string(provider) }/>
-					if provider == domain.ProviderGitHub {
-						<div class="form-group">
-							<label class="form-label">Personal Access Token</label>
-							<input class="form-input" type="password" name="access_token" value={ ig.AccessToken }/>
-						</div>
-						<div class="form-group">
-							<label class="form-label">GitHub Username</label>
-							<input class="form-input" type="text" name="username" value={ ig.Username }/>
-						</div>
-					} else {
-						<div class="form-group">
-							<label class="form-label">Jira Base URL</label>
-							<input class="form-input" type="url" name="base_url" value={ ig.BaseURL }/>
-						</div>
-						<div class="form-group">
-							<label class="form-label">API Token</label>
-							<input class="form-input" type="password" name="access_token" value={ ig.AccessToken }/>
-						</div>
-						<div class="form-group">
-							<label class="form-label">Account ID</label>
-							<input class="form-input" type="text" name="username" value={ ig.Username }/>
-						</div>
-					}
-					<div class="form-group">
-						<label class="form-label">Poll interval (seconds)</label>
-						<input class="form-input" type="number" name="poll_interval_seconds" value={ strconv.Itoa(ig.PollIntervalSeconds) } min="60"/>
-					</div>
-					<button type="submit" class="btn btn-primary">Save</button>
-				</form>
-				@spacesSection(ig)
+		if ig, ok := firstIntegration(d.Integrations, provider); ok {
+			<form hx-post="/settings/integration" hx-swap="none" style="margin-bottom:20px">
+				<input type="hidden" name="id" value={ strconv.Itoa(ig.ID) }/>
+				<input type="hidden" name="provider" value={ string(provider) }/>
 				if provider == domain.ProviderGitHub {
-					@teammatesSection(ig)
-					@prerequisitesSection(ig)
+					<div class="form-group">
+						<label class="form-label">Personal Access Token</label>
+						<input class="form-input" type="password" name="access_token" placeholder="Leave blank to keep existing token"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">GitHub Username</label>
+						<input class="form-input" type="text" name="username" value={ ig.Username }/>
+					</div>
+				} else {
+					<div class="form-group">
+						<label class="form-label">Jira Base URL</label>
+						<input class="form-input" type="url" name="base_url" value={ ig.BaseURL }/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">API Token</label>
+						<input class="form-input" type="password" name="access_token" placeholder="Leave blank to keep existing token"/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">Account ID</label>
+						<input class="form-input" type="text" name="username" value={ ig.Username }/>
+					</div>
 				}
+				<div class="form-group">
+					<label class="form-label">Poll interval (seconds)</label>
+					<input class="form-input" type="number" name="poll_interval_seconds" value={ strconv.Itoa(ig.PollIntervalSeconds) } min="60"/>
+				</div>
+				<button type="submit" class="btn btn-primary">Save</button>
+			</form>
+			@spacesSection(ig)
+			if provider == domain.ProviderGitHub {
+				@teammatesSection(ig)
+				@prerequisitesSection(ig)
 			}
 		}
 		if !hasProvider(d.Integrations, provider) {
@@ -140,6 +138,11 @@ templ spacesSection(ig IntegrationWithSpaces) {
 			</div>
 			<button type="submit" class="btn" style="margin-top:6px">Save</button>
 		</form>
+		if ig.Provider == domain.ProviderGitHub {
+			<p style="font-size:11px;color:var(--muted);margin-top:8px">
+				Note: Stale review detection requires "Dismiss stale reviews on new commits" branch protection to be enabled on each repo.
+			</p>
+		}
 	</div>
 }
 
@@ -242,6 +245,15 @@ func providerLabel(p domain.Provider) string {
 		return "GitHub"
 	}
 	return "Jira"
+}
+
+func firstIntegration(igs []IntegrationWithSpaces, provider domain.Provider) (IntegrationWithSpaces, bool) {
+	for _, ig := range igs {
+		if ig.Provider == provider {
+			return ig, true
+		}
+	}
+	return IntegrationWithSpaces{}, false
 }
 
 func hasProvider(igs []IntegrationWithSpaces, provider domain.Provider) bool {

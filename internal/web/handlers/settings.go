@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -110,6 +112,20 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 			return
 		}
 		integration.ID = id
+		// Blank access_token means "keep existing" — fetch and preserve the stored token.
+		if integration.AccessToken == "" {
+			existing, err := h.integrations.GetIntegration(r.Context(), id)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					h.respondError(w, "Integration not found", http.StatusNotFound)
+					return
+				}
+				log.Printf("get integration for token preservation: %v", err)
+				h.respondError(w, "Failed to load integration", http.StatusInternalServerError)
+				return
+			}
+			integration.AccessToken = existing.AccessToken
+		}
 		if err := h.integrations.UpdateIntegration(r.Context(), integration); err != nil {
 			log.Printf("update integration: %v", err)
 			h.respondError(w, "Failed to update integration", http.StatusInternalServerError)
@@ -117,6 +133,10 @@ func (h *SettingsHandler) SaveIntegration(w http.ResponseWriter, r *http.Request
 		}
 	} else {
 		if _, err := h.integrations.CreateIntegration(r.Context(), integration); err != nil {
+			if errors.Is(err, domain.ErrDuplicateProvider) {
+				h.respondError(w, "An integration for this provider already exists", http.StatusConflict)
+				return
+			}
 			log.Printf("create integration: %v", err)
 			h.respondError(w, "Failed to create integration", http.StatusInternalServerError)
 			return

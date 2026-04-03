@@ -1,7 +1,14 @@
 // internal/domain/integration.go
 package domain
 
-import "time"
+import (
+	"errors"
+	"time"
+)
+
+// ErrDuplicateProvider is returned when trying to create a second integration
+// for a provider that already exists.
+var ErrDuplicateProvider = errors.New("integration for this provider already exists")
 
 type Provider string
 
