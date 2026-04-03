@@ -35,3 +35,14 @@ go.work.sum
 docs/
 .worktrees/
 /churndesk
+
+# Runtime data
+data/
+
+# Playwright CLI session files and screenshots
+.playwright-cli/
+*.png
+*.pdf
+
+# Claude Code local config
+.claude/

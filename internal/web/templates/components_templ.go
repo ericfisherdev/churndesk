@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/churndesk/churndesk/internal/domain"
+	"github.com/churndesk/churndesk/internal/markdown"
 )
 
 // TypePill renders the item type badge.
@@ -68,7 +69,7 @@ func TypePill(t domain.ItemType) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(typeLabel(t))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 17, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 18, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 		if templ_7745c5c3_Err != nil {
@@ -112,7 +113,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(prOwner)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 23, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 24, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -125,7 +126,7 @@ func SourcePill(source, prOwner, prRepo string) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(prRepo)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 23, Col: 52}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 24, Col: 52}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -174,7 +175,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(author)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 33, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 34, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 		if templ_7745c5c3_Err != nil {
@@ -187,7 +188,7 @@ func CommentPartial(author, body string, renderedBody template.HTML, createdAt t
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(createdAt.Format("Jan 2, 2006 15:04"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 34, Col: 90}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 35, Col: 90}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
@@ -238,7 +239,7 @@ func ErrorPartial(message string) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 43, Col: 11}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/templates/components.templ`, Line: 44, Col: 11}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -411,6 +412,119 @@ func itemDetailURL(item domain.Item) string {
 	return sanitizeURL(item.URL)
 }
 
+// prGroup holds a primary status item and any comment items for the same PR.
+type prGroup struct {
+	primary  domain.Item
+	comments []domain.Item
+}
+
+// prRawTitle extracts the bare PR title from item metadata (pr_title field),
+// falling back to the item title when metadata is absent or unparseable.
+func prRawTitle(item domain.Item) string {
+	if item.Metadata != "" {
+		var m struct {
+			PRTitle string `json:"pr_title"`
+		}
+		if err := json.Unmarshal([]byte(item.Metadata), &m); err == nil && m.PRTitle != "" {
+			return m.PRTitle
+		}
+	}
+	return item.Title
+}
+
+// groupFeedItems groups items by PR (owner/repo/number), separating the primary
+// status item from comment items. Items that don't belong to a PR are each their
+// own group. The output order follows the first appearance of each group key in
+// the input slice, which preserves the score-sorted order from the store.
+func groupFeedItems(items []domain.Item) []prGroup {
+	type entry struct {
+		primary  *domain.Item
+		comments []domain.Item
+	}
+	keys := []string{}
+	groups := map[string]*entry{}
+
+	prKey := func(item domain.Item) string {
+		if item.Source == "github" && item.PROwner != "" && item.ExternalID != "" {
+			return item.PROwner + "/" + item.PRRepo + "/" + item.ExternalID
+		}
+		return item.ID
+	}
+
+	for i := range items {
+		item := items[i]
+		key := prKey(item)
+		if _, ok := groups[key]; !ok {
+			groups[key] = &entry{}
+			keys = append(keys, key)
+		}
+		if item.Type == domain.ItemTypePRNewComment {
+			groups[key].comments = append(groups[key].comments, item)
+		} else {
+			groups[key].primary = &item
+		}
+	}
+
+	result := make([]prGroup, 0, len(keys))
+	for _, key := range keys {
+		e := groups[key]
+		if e.primary == nil {
+			if len(e.comments) == 0 {
+				continue
+			}
+			result = append(result, prGroup{primary: e.comments[0], comments: e.comments[1:]})
+		} else {
+			result = append(result, prGroup{primary: *e.primary, comments: e.comments})
+		}
+	}
+	return result
+}
+
+// firstLineText extracts a single plain-text preview line from a comment's
+// metadata JSON. It skips HTML comments, blank lines, and GitHub alert markers
+// (e.g. [!IMPORTANT]), strips blockquote prefixes and heading markers, and
+// truncates to 80 runes.
+func firstLineText(metadata string) string {
+	if metadata == "" {
+		return ""
+	}
+	var m struct {
+		LatestComment string `json:"latest_comment"`
+	}
+	if err := json.Unmarshal([]byte(metadata), &m); err != nil || m.LatestComment == "" {
+		return ""
+	}
+	for _, line := range strings.Split(m.LatestComment, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "<!--") {
+			continue
+		}
+		// Strip blockquote prefixes ("> > text" → "text")
+		for strings.HasPrefix(line, ">") {
+			line = strings.TrimSpace(line[1:])
+		}
+		if line == "" {
+			continue
+		}
+		// Skip GitHub alert type markers like [!IMPORTANT]
+		if strings.HasPrefix(line, "[!") {
+			continue
+		}
+		// Strip leading heading markers
+		line = strings.TrimLeft(line, "#")
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		runes := []rune(line)
+		if len(runes) > 80 {
+			return string(runes[:80]) + "…"
+		}
+		return line
+	}
+	return ""
+}
+
 func extractLatestComment(metadata string) string {
 	if metadata == "" {
 		return ""
@@ -426,6 +540,21 @@ func extractLatestComment(metadata string) string {
 		return string(runes[:120]) + "…"
 	}
 	return m.LatestComment
+}
+
+// renderLatestComment extracts the latest_comment field from metadata JSON and
+// returns it rendered as sanitized HTML via the shared markdown renderer.
+func renderLatestComment(metadata string) template.HTML {
+	if metadata == "" {
+		return ""
+	}
+	var m struct {
+		LatestComment string `json:"latest_comment"`
+	}
+	if err := json.Unmarshal([]byte(metadata), &m); err != nil || m.LatestComment == "" {
+		return ""
+	}
+	return template.HTML(markdown.Render(m.LatestComment)) //nolint:gosec
 }
 
 var _ = templruntime.GeneratedTemplate
