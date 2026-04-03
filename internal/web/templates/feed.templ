@@ -9,73 +9,100 @@ import (
 )
 
 // FeedPage renders the full feed page with layout wrapper.
-templ FeedPage(items []domain.Item, columns, interval int) {
+templ FeedPage(items []domain.Item, columns, interval int, fp string) {
 	@Layout("Feed") {
 		<div
 			id="feed"
+			data-fp={ fp }
 			hx-get="/feed"
 			hx-trigger={ "every " + strconv.Itoa(interval) + "s" }
-			hx-swap="innerHTML"
-			hx-vals={ `js:{"count": document.querySelectorAll('.feed-item').length}` }>
-			@feedGrid(items, columns)
+			hx-ext="morph"
+			hx-swap="morph:innerHTML"
+			hx-vals={ `js:{"count": document.querySelectorAll('.feed-item').length, "fp": document.getElementById('feed').dataset.fp}` }
+			hx-on::after-request="if(event.detail.successful){var h=event.detail.xhr.getResponseHeader('X-Feed-Fingerprint');if(h)document.getElementById('feed').dataset.fp=h}">
+			@feedList(items)
 		</div>
 	}
 }
 
-// FeedFragment renders only the inner grid (returned by GET /feed for HTMX swap).
+// FeedFragment renders only the inner list (returned by GET /feed for HTMX swap).
 templ FeedFragment(items []domain.Item, columns, interval int) {
-	@feedGrid(items, columns)
+	@feedList(items)
 }
 
-templ feedGrid(items []domain.Item, columns int) {
-	if len(items) == 0 {
-		<div class="empty-state">
-			<div class="empty-state-icon">✓</div>
-			<p>All clear — no items need your attention.</p>
-		</div>
-	} else {
-		<div class="feed-grid" data-cols={ intStr(columns) }>
-			for _, item := range items {
-				@FeedItem(item)
-			}
-		</div>
-	}
-}
-
-// FeedItem renders a single feed card.
-templ FeedItem(item domain.Item) {
-	<div class={ "feed-item", itemTypeClass(item.Type), unseenClass(item.Seen) }>
-		<a
-			href={ templ.SafeURL(itemDetailURL(item)) }
-			hx-post={ "/items/" + url.PathEscape(item.ID) + "/seen" }
-			hx-trigger="click"
-			hx-swap="none"
-			style="display:block;text-decoration:none;color:inherit">
-			<div class="flex gap-2 items-center" style="flex-wrap:wrap">
-				@TypePill(item.Type)
-				@SourcePill(item.Source, item.PROwner, item.PRRepo)
+templ feedList(items []domain.Item) {
+	<div class="feed-content">
+		if len(items) == 0 {
+			<div class="empty-state">
+				<div class="empty-state-icon">✓</div>
+				<p>All clear — no items need your attention.</p>
 			</div>
-			<div class="item-title">{ item.Title }</div>
-			if item.PrerequisitesMet == 0 {
-				<div class="item-prereq-warning">⏳ Awaiting required approvals</div>
+		} else {
+			for _, group := range groupFeedItems(items) {
+				@prGroupCard(group)
 			}
-			<div class="item-meta">
-				<span>{ relativeTime(item.CreatedAt) }</span>
-			</div>
-			if latestComment := extractLatestComment(item.Metadata); latestComment != "" {
-				<div class="item-comment-preview">{ latestComment }</div>
-			}
-		</a>
-		<button
-			class="dismiss-btn"
-			hx-post={ "/items/" + url.PathEscape(item.ID) + "/dismiss" }
-			hx-target="closest .feed-item"
-			hx-swap="outerHTML"
-			onclick="event.stopPropagation()"
-			onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation()}"
-			title="Dismiss"
-			aria-label="Dismiss">
-			⊗
-		</button>
+		}
 	</div>
+}
+
+templ prGroupCard(g prGroup) {
+	<div class="feed-group">
+		<div id={ "feed-item-" + g.primary.ID } class={ "feed-item", itemTypeClass(g.primary.Type), unseenClass(g.primary.Seen) }>
+			<a
+				href={ templ.SafeURL(itemDetailURL(g.primary)) }
+				data-seen-url={ "/items/" + url.PathEscape(g.primary.ID) + "/seen" }
+				onclick="fetch(this.dataset.seenUrl,{method:'POST'})"
+				style="display:block;text-decoration:none;color:inherit">
+				<div class="flex gap-2 items-center" style="flex-wrap:wrap">
+					@TypePill(g.primary.Type)
+					@SourcePill(g.primary.Source, g.primary.PROwner, g.primary.PRRepo)
+				</div>
+				<div class="item-title">{ prRawTitle(g.primary) }</div>
+				if g.primary.PrerequisitesMet == 0 {
+					<div class="item-prereq-warning">⏳ Awaiting required approvals</div>
+				}
+				<div class="item-meta">
+					<span>{ relativeTime(g.primary.CreatedAt) }</span>
+				</div>
+			</a>
+			<button
+				class="dismiss-btn"
+				hx-post={ "/items/" + url.PathEscape(g.primary.ID) + "/dismiss" }
+				hx-target="#feed"
+				hx-swap="innerHTML"
+				onclick="event.stopPropagation()"
+				onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation()}"
+				title="Dismiss"
+				aria-label="Dismiss">
+				⊗
+			</button>
+		</div>
+		for _, c := range g.comments {
+			@commentCard(c)
+		}
+	</div>
+}
+
+templ commentCard(item domain.Item) {
+	<details
+		class="comment-card"
+		hx-post={ "/items/" + url.PathEscape(item.ID) + "/seen" }
+		hx-trigger="toggle once"
+		hx-swap="none">
+		<summary class="comment-summary">
+			@TypePill(item.Type)
+			<span class="comment-card-time">{ relativeTime(item.CreatedAt) }</span>
+			if preview := firstLineText(item.Metadata); preview != "" {
+				<span class="comment-preview">{ preview }</span>
+			}
+		</summary>
+		if body := renderLatestComment(item.Metadata); body != "" {
+			<div class="comment-body prose">@templ.Raw(string(body))</div>
+		}
+	</details>
+}
+
+// FeedItem is kept for backward compatibility with any direct callers.
+templ FeedItem(item domain.Item) {
+	@prGroupCard(prGroup{primary: item})
 }

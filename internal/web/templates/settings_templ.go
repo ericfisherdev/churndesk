@@ -136,7 +136,7 @@ func integrationSection(d SettingsPageData, provider domain.Provider) templ.Comp
 			return templ_7745c5c3_Err
 		}
 		if ig, ok := firstIntegration(d.Integrations, provider); ok {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<form hx-post=\"/settings/integration\" hx-swap=\"none\" style=\"margin-bottom:20px\"><input type=\"hidden\" name=\"id\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<form hx-post=\"/settings/integration\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\" style=\"margin-bottom:20px\"><input type=\"hidden\" name=\"id\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -257,7 +257,7 @@ func integrationSection(d SettingsPageData, provider domain.Provider) templ.Comp
 			}
 		}
 		if !hasProvider(d.Integrations, provider) {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<form hx-post=\"/settings/integration\" hx-swap=\"none\"><input type=\"hidden\" name=\"provider\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<form hx-post=\"/settings/integration\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\"><input type=\"hidden\" name=\"provider\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -347,7 +347,7 @@ func spacesSection(ig IntegrationWithSpaces) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</h3><form hx-post=\"/settings/spaces\" hx-swap=\"none\"><input type=\"hidden\" name=\"integration_id\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</h3><form hx-post=\"/settings/spaces\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\"><input type=\"hidden\" name=\"integration_id\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -463,7 +463,7 @@ func teammatesSection(ig IntegrationWithSpaces) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div style=\"margin-top:16px\"><h3 style=\"font-size:13px;font-weight:600;margin-bottom:10px\">Teammates to watch</h3><form hx-post=\"/settings/teammates\" hx-swap=\"none\"><input type=\"hidden\" name=\"integration_id\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div style=\"margin-top:16px\"><h3 style=\"font-size:13px;font-weight:600;margin-bottom:10px\">Teammates to watch</h3><form hx-post=\"/settings/teammates\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\"><input type=\"hidden\" name=\"integration_id\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -541,7 +541,7 @@ func prerequisitesSection(ig IntegrationWithSpaces) templ.Component {
 			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div style=\"margin-top:16px\"><h3 style=\"font-size:13px;font-weight:600;margin-bottom:10px\">Review prerequisites</h3><p style=\"font-size:12px;color:var(--muted);margin-bottom:10px\">PRs must be approved by all listed bots before gaining age points.</p><form hx-post=\"/settings/prerequisites\" hx-swap=\"none\"><input type=\"hidden\" name=\"integration_id\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<div style=\"margin-top:16px\"><h3 style=\"font-size:13px;font-weight:600;margin-bottom:10px\">Review prerequisites</h3><p style=\"font-size:12px;color:var(--muted);margin-bottom:10px\">PRs must be approved by all listed bots before gaining age points.</p><form hx-post=\"/settings/prerequisites\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\"><input type=\"hidden\" name=\"integration_id\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -619,7 +619,7 @@ func generalSection(d SettingsPageData) templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"settings-section\"><h2>General</h2><form hx-post=\"/settings/general\" hx-swap=\"none\"><div class=\"form-group\"><label class=\"form-label\">Feed columns (1–3)</label> <input class=\"form-input\" type=\"number\" name=\"feed_columns\" min=\"1\" max=\"3\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<div class=\"settings-section\"><h2>General</h2><form hx-post=\"/settings/general\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\"><div class=\"form-group\"><label class=\"form-label\">Feed columns (1–3)</label> <input class=\"form-input\" type=\"number\" name=\"feed_columns\" min=\"1\" max=\"3\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -713,7 +713,7 @@ func weightsSection(d SettingsPageData) templ.Component {
 			templ_7745c5c3_Var32 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"settings-section\"><h2>Priority weights</h2><p style=\"font-size:12px;color:var(--muted);margin-bottom:16px\">Use \"Re-score all\" to apply weights retroactively.</p><form hx-post=\"/settings/weights\" hx-swap=\"none\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"settings-section\"><h2>Priority weights</h2><p style=\"font-size:12px;color:var(--muted);margin-bottom:16px\">Use \"Re-score all\" to apply weights retroactively.</p><form hx-post=\"/settings/weights\" hx-swap=\"none\" hx-on::after-request=\"if(event.detail.xhr.status<300) window.location.reload()\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

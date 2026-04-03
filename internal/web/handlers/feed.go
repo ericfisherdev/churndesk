@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"hash/fnv"
 	"net/http"
 	"strconv"
 
@@ -57,6 +58,21 @@ func (h *FeedHandler) readIntervalSetting(ctx context.Context) int {
 	return n
 }
 
+// feedFingerprint returns a short hash of item IDs and seen state so the
+// polling handler can return 204 when the feed has not changed.
+func feedFingerprint(items []domain.Item) string {
+	h := fnv.New64a()
+	for _, item := range items {
+		h.Write([]byte(item.ID))
+		if item.Seen == 0 {
+			h.Write([]byte{0})
+		} else {
+			h.Write([]byte{1})
+		}
+	}
+	return strconv.FormatUint(h.Sum64(), 36)
+}
+
 // Page renders the full feed page (initial load).
 func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request) {
 	items, err := h.items.ListRanked(r.Context(), 200)
@@ -66,22 +82,28 @@ func (h *FeedHandler) Page(w http.ResponseWriter, r *http.Request) {
 	}
 	columns := h.readColumnsSetting(r.Context())
 	interval := h.readIntervalSetting(r.Context())
-	templates.FeedPage(items, columns, interval).Render(r.Context(), w) //nolint:errcheck
+	templates.FeedPage(items, columns, interval, feedFingerprint(items)).Render(r.Context(), w) //nolint:errcheck
 }
 
 // Fragment renders just the feed list (HTMX polling update).
-// Reads ?count=N from query string to detect new-item count changes.
-// Sets X-Has-New-Items: true header when the item count has grown.
+// Returns 204 No Content when the feed fingerprint matches the client's
+// cached value, preventing any DOM swap and thus eliminating flicker.
 func (h *FeedHandler) Fragment(w http.ResponseWriter, r *http.Request) {
 	items, err := h.items.ListRanked(r.Context(), 200)
 	if err != nil {
 		http.Error(w, "failed to load feed", http.StatusInternalServerError)
 		return
 	}
+	fp := feedFingerprint(items)
+	if r.URL.Query().Get("fp") == fp {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	prevCount, _ := strconv.Atoi(r.URL.Query().Get("count"))
 	if len(items) > prevCount {
 		w.Header().Set("X-Has-New-Items", "true")
 	}
+	w.Header().Set("X-Feed-Fingerprint", fp)
 	columns := h.readColumnsSetting(r.Context())
 	interval := h.readIntervalSetting(r.Context())
 	templates.FeedFragment(items, columns, interval).Render(r.Context(), w) //nolint:errcheck

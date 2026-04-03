@@ -26,180 +26,255 @@ type PRPageData struct {
 	AuthenticatedUser string
 }
 
+func prDaysAgo(t time.Time) string {
+	days := int(time.Since(t).Hours() / 24)
+	switch {
+	case days == 0:
+		return "today"
+	case days == 1:
+		return "1 day ago"
+	default:
+		return fmt.Sprintf("%d days ago", days)
+	}
+}
+
 // PRPage renders the full PR detail page.
 templ PRPage(d PRPageData) {
 	@Layout(fmt.Sprintf("PR #%d — %s", d.PR.Number, d.PR.Title)) {
-		<div class="pr-detail" style="max-width:1100px;margin:0 auto;padding:20px 24px">
+		<div class="pr-detail" x-data="{ tab: 'comments' }">
+			<!-- Back link -->
+			<a href="/" class="pr-back-link">← Back to inbox</a>
 			<!-- Header -->
-			<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:16px">
-				<div style="flex:1">
-					<a href="/" style="font-size:12px;color:var(--muted);text-decoration:none">← Back to inbox</a>
-					<h1 style="font-size:18px;font-weight:600;margin:6px 0 4px">{ d.PR.Title }</h1>
-					<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-						@prStatusBadge(d.PR.State)
-						<span class="pill pill-muted">{ d.PR.Branch } → { d.PR.BaseBranch }</span>
-						<span style="color:var(--muted);font-size:12px">by { d.PR.Author }</span>
-					</div>
-				</div>
+			<div class="pr-header">
+				<h1 class="pr-title">
+					{ d.PR.Title }
+					<span class="pr-number">#{ fmt.Sprint(d.PR.Number) }</span>
+				</h1>
+				<p class="pr-subtitle">
+					{ d.PR.Owner }/{ d.PR.Repo } · { d.PR.Author }
+				</p>
 			</div>
-			<!-- Pills row: repo, diff stats, CI -->
-			<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
-				<span class="pill pill-muted">{ d.PR.Owner }/{ d.PR.Repo } #{ fmt.Sprintf("%d", d.PR.Number) }</span>
-				<span class="pill pill-green">+{ fmt.Sprintf("%d", d.PR.Additions) }</span>
-				<span class="pill pill-red">-{ fmt.Sprintf("%d", d.PR.Deletions) }</span>
-				<span class="pill pill-muted">{ fmt.Sprintf("%d", d.PR.FilesChanged) } files</span>
+			<!-- Status badges -->
+			<div class="pr-badges">
+				@prStatusBadge(d.PR.State)
 				@ciStatusBadge(d.Checks)
-			</div>
-			<!-- Linked Jira issues -->
-			if len(d.JiraKeys) > 0 {
-				<div style="display:flex;gap:6px;align-items:center;margin-bottom:16px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px">
-					<span style="font-size:12px;color:var(--muted);margin-right:4px">Jira:</span>
+				if len(d.JiraKeys) > 0 {
 					for _, key := range d.JiraKeys {
-						<a href={ templ.SafeURL("/jira/" + key) } class="pill pill-amber">{ key }</a>
+						<a href={ templ.SafeURL("/jira/" + key) } class="badge badge-amber">{ key }</a>
+					}
+				}
+			</div>
+			<!-- Info card -->
+			<div class="pr-info-card">
+				<div class="pr-info-grid">
+					<div>
+						<span class="pr-info-label">Branch</span>
+						<p class="pr-info-value pr-info-mono" title={ d.PR.Branch }>{ d.PR.Branch }</p>
+					</div>
+					<div>
+						<span class="pr-info-label">Base</span>
+						<p class="pr-info-value pr-info-mono">{ d.PR.BaseBranch }</p>
+					</div>
+					<div>
+						<span class="pr-info-label">Head SHA</span>
+						<p class="pr-info-value pr-info-mono">{ truncSHA(d.PR.HeadSHA) }</p>
+					</div>
+					<div>
+						<span class="pr-info-label">Opened</span>
+						<p class="pr-info-value">{ prDaysAgo(d.PR.CreatedAt) }</p>
+					</div>
+				</div>
+				<div class="pr-info-stats">
+					<span class="pr-stat-add">+{ fmt.Sprint(d.PR.Additions) }</span>
+					<span class="pr-stat-del">-{ fmt.Sprint(d.PR.Deletions) }</span>
+					<span class="pr-stat-files">{ fmt.Sprint(d.PR.FilesChanged) } files changed</span>
+				</div>
+			</div>
+			<!-- Tab navigation -->
+			<div class="pr-tab-bar">
+				<nav class="pr-tab-nav" aria-label="PR detail tabs">
+					<button
+						id="tab-comments"
+						@click="tab = 'comments'"
+						:class="tab === 'comments' ? 'pr-tab pr-tab-active' : 'pr-tab'"
+					>
+						Comments ({ fmt.Sprint(len(d.Comments)) })
+					</button>
+					<button
+						id="tab-reviews"
+						@click="tab = 'reviews'"
+						:class="tab === 'reviews' ? 'pr-tab pr-tab-active' : 'pr-tab'"
+					>
+						Reviews ({ fmt.Sprint(len(d.Reviews)) })
+					</button>
+					<button
+						id="tab-ci"
+						@click="tab = 'ci'"
+						:class="tab === 'ci' ? 'pr-tab pr-tab-active' : 'pr-tab'"
+					>
+						CI ({ fmt.Sprint(len(d.Checks)) })
+					</button>
+				</nav>
+			</div>
+			<!-- Tab content -->
+			<!-- Comments tab -->
+			<div x-show="tab === 'comments'" role="tabpanel" aria-labelledby="tab-comments">
+				if d.PR.Body != "" {
+					<div class="pr-body-card prose">
+						@templ.Raw(string(d.BodyHTML))
+					</div>
+				}
+				<div id="comment-list" class="pr-comment-list">
+					if len(d.Comments) == 0 {
+						<p class="pr-empty-tab">No comments yet</p>
+					}
+					for _, c := range d.Comments {
+						@prCommentCard(c)
 					}
 				</div>
-			}
-			<!-- Main content: 2-column layout -->
-			<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">
-				<!-- Left: description + comments -->
-				<div>
-					if d.PR.Body != "" {
-						<div class="prose" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
-							@templ.Raw(string(d.BodyHTML))
+				<!-- Reply form -->
+				<div class="pr-card pr-reply-form">
+					<form
+						hx-post={ fmt.Sprintf("/prs/%s/%s/%d/comments", d.PR.Owner, d.PR.Repo, d.PR.Number) }
+						hx-target="#comment-list"
+						hx-swap="beforeend">
+						<textarea
+							name="body"
+							class="pr-textarea"
+							aria-label="Leave a comment"
+							placeholder="Leave a comment…"></textarea>
+						<div class="pr-form-actions">
+							<button type="submit" class="btn btn-primary">Comment</button>
 						</div>
-					}
-					<div id="comment-list">
-						for _, c := range d.Comments {
-							@prCommentBlock(c)
-						}
-					</div>
-					<!-- Reply form -->
-					<div style="margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px">
-						<form
-							hx-post={ fmt.Sprintf("/prs/%s/%s/%d/comments", d.PR.Owner, d.PR.Repo, d.PR.Number) }
-							hx-target="#comment-list"
-							hx-swap="beforeend">
-							<textarea
-								name="body"
-								aria-label="Leave a comment"
-								placeholder="Leave a comment…"
-								style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px;resize:vertical"></textarea>
-							<div style="display:flex;justify-content:flex-end;margin-top:8px">
-								<button type="submit" class="btn btn-primary">Comment</button>
+					</form>
+				</div>
+				<!-- Review bar (not shown for own PRs) -->
+				if d.PR.Author != d.AuthenticatedUser {
+					<div class="pr-card pr-review-form">
+						<h3 class="pr-card-title">Submit review</h3>
+						<form hx-post={ fmt.Sprintf("/prs/%s/%s/%d/reviews", d.PR.Owner, d.PR.Repo, d.PR.Number) } hx-swap="none">
+							<div class="pr-review-options">
+								<label class="pr-radio-label"><input type="radio" name="verdict" value="APPROVE"/> Approve</label>
+								<label class="pr-radio-label"><input type="radio" name="verdict" value="REQUEST_CHANGES"/> Request changes</label>
+								<label class="pr-radio-label"><input type="radio" name="verdict" value="COMMENT"/> Comment</label>
+							</div>
+							<textarea name="body" class="pr-textarea" aria-label="Review comment" placeholder="Review comment (optional)"></textarea>
+							<div class="pr-form-actions">
+								<button type="submit" class="btn btn-primary">Submit review</button>
 							</div>
 						</form>
 					</div>
-					<!-- Review bar (not shown for own PRs) -->
-					if d.PR.Author != d.AuthenticatedUser {
-						<div style="margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px">
-							<h3 style="font-size:13px;font-weight:600;margin-bottom:12px">Submit review</h3>
-							<form hx-post={ fmt.Sprintf("/prs/%s/%s/%d/reviews", d.PR.Owner, d.PR.Repo, d.PR.Number) } hx-swap="none">
-								<div style="display:flex;gap:8px;margin-bottom:8px">
-									<label><input type="radio" name="verdict" value="APPROVE"/> Approve</label>
-									<label><input type="radio" name="verdict" value="REQUEST_CHANGES"/> Request changes</label>
-									<label><input type="radio" name="verdict" value="COMMENT"/> Comment</label>
-								</div>
-								<textarea name="body" aria-label="Review comment" placeholder="Review comment (optional)" style="width:100%;min-height:60px;background:var(--surface);border:1px solid var(--border-solid);border-radius:6px;color:var(--text);padding:8px;font-size:13px"></textarea>
-								<div style="display:flex;justify-content:flex-end;margin-top:8px">
-									<button type="submit" class="btn btn-primary">Submit review</button>
-								</div>
-							</form>
-						</div>
-					}
-					<!-- Request Reviewers panel (own PRs only) -->
-					if d.PR.Author == d.AuthenticatedUser && len(d.Teammates) > 0 {
-						<div style="margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px">
-							<h3 style="font-size:13px;font-weight:600;margin-bottom:12px">Request reviewers</h3>
-							<form hx-post={ fmt.Sprintf("/prs/%s/%s/%d/reviewers", d.PR.Owner, d.PR.Repo, d.PR.Number) } hx-swap="none">
-								<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-									for _, t := range d.Teammates {
-										<label style="display:flex;align-items:center;gap:8px;font-size:13px">
-											<input type="checkbox" name="logins" value={ t.GitHubUsername }/>
-											{ t.DisplayName } <span style="color:var(--muted)">({ t.GitHubUsername })</span>
-										</label>
-									}
-								</div>
-								<button type="submit" class="btn">Request</button>
-							</form>
-						</div>
-					}
-				</div>
-				<!-- Right sidebar -->
-				<div>
-					<!-- Reviewers -->
-					<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
-						<h3 style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Reviewers</h3>
-						if len(d.Reviews) == 0 {
-							<p style="font-size:12px;color:var(--muted)">No reviews yet</p>
-						}
-						for _, r := range d.Reviews {
-							<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-								<span style="font-size:13px">{ r.Author }</span>
-								@reviewStateBadge(r.State)
+				}
+				<!-- Request Reviewers panel (own PRs only) -->
+				if d.PR.Author == d.AuthenticatedUser && len(d.Teammates) > 0 {
+					<div class="pr-card">
+						<h3 class="pr-card-title">Request reviewers</h3>
+						<form hx-post={ fmt.Sprintf("/prs/%s/%s/%d/reviewers", d.PR.Owner, d.PR.Repo, d.PR.Number) } hx-swap="none">
+							<div class="pr-reviewer-list">
+								for _, t := range d.Teammates {
+									<label class="pr-checkbox-label">
+										<input type="checkbox" name="logins" value={ t.GitHubUsername }/>
+										{ t.DisplayName } <span class="pr-reviewer-username">({ t.GitHubUsername })</span>
+									</label>
+								}
 							</div>
-						}
+							<button type="submit" class="btn">Request</button>
+						</form>
 					</div>
-					<!-- CI Checks -->
-					<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px">
-						<h3 style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Checks</h3>
-						if len(d.Checks) == 0 {
-							<p style="font-size:12px;color:var(--muted)">No checks</p>
-						}
-						for _, c := range d.Checks {
-							<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-								@checkBadge(c.Conclusion)
-								<span style="font-size:12px">{ c.Name }</span>
-							</div>
-						}
-					</div>
-				</div>
+				}
+			</div>
+			<!-- Reviews tab -->
+			<div x-show="tab === 'reviews'" role="tabpanel" aria-labelledby="tab-reviews">
+				if len(d.Reviews) == 0 {
+					<p class="pr-empty-tab">No reviews yet</p>
+				}
+				for _, r := range d.Reviews {
+					@prReviewCard(r)
+				}
+			</div>
+			<!-- CI tab -->
+			<div x-show="tab === 'ci'" role="tabpanel" aria-labelledby="tab-ci">
+				if len(d.Checks) == 0 {
+					<p class="pr-empty-tab">No CI checks</p>
+				}
+				for _, c := range d.Checks {
+					@prCheckRunCard(c)
+				}
 			</div>
 		</div>
 	}
 }
 
-templ prCommentBlock(c RenderedComment) {
-	<div class="comment" style="padding:14px 0;border-top:1px solid var(--border)">
-		<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
-			<span style="font-weight:600;font-size:13px">{ c.Author }</span>
-			<span style="color:var(--muted);font-size:12px">{ c.CreatedAt.Format("Jan 2, 2006 15:04") }</span>
+templ prCommentCard(c RenderedComment) {
+	<div class="pr-card">
+		<div class="pr-card-header">
+			<span class="pr-card-author">{ c.Author }</span>
+			<span class="pr-card-time">{ c.CreatedAt.Format("Jan 2, 2006 15:04") }</span>
 		</div>
-		<div class="prose">@templ.Raw(string(c.BodyHTML))</div>
+		<div class="pr-card-body prose">@templ.Raw(string(c.BodyHTML))</div>
 	</div>
+}
+
+templ prReviewCard(r domain.Review) {
+	<div class="pr-card">
+		<div class="pr-card-header">
+			<span class="pr-card-author">{ r.Author }</span>
+			@reviewStateBadge(r.State)
+		</div>
+	</div>
+}
+
+templ prCheckRunCard(c domain.CheckRun) {
+	<div class="pr-check-card">
+		@checkStatusDot(c)
+		<span class="pr-check-name">{ c.Name }</span>
+		if c.Status != "completed" {
+			<span class="badge badge-muted">{ c.Status }</span>
+		}
+	</div>
+}
+
+func truncSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
 
 templ prStatusBadge(state string) {
 	switch state {
 	case "open":
-		<span class="pill pill-green">Open</span>
+		<span class="badge badge-green">Open</span>
 	case "merged":
-		<span class="pill pill-accent">Merged</span>
+		<span class="badge badge-accent">Merged</span>
 	default:
-		<span class="pill pill-muted">Closed</span>
+		<span class="badge badge-muted">Closed</span>
 	}
 }
 
 templ reviewStateBadge(state string) {
 	switch state {
 	case "APPROVED":
-		<span class="pill pill-green" style="font-size:11px">Approved</span>
+		<span class="badge badge-green">Approved</span>
 	case "CHANGES_REQUESTED":
-		<span class="pill pill-amber" style="font-size:11px">Changes requested</span>
+		<span class="badge badge-amber">Changes Requested</span>
 	case "DISMISSED":
-		<span class="pill pill-muted" style="font-size:11px">Dismissed</span>
+		<span class="badge badge-muted">Dismissed</span>
 	default:
-		<span class="pill pill-muted" style="font-size:11px">{ state }</span>
+		<span class="badge badge-muted">{ state }</span>
 	}
 }
 
-templ checkBadge(conclusion string) {
-	switch conclusion {
+templ checkStatusDot(c domain.CheckRun) {
+	switch c.Conclusion {
 	case "success":
-		<span style="color:var(--green)">✓</span>
+		<span class="pr-check-dot pr-check-dot-green" title="Success"></span>
 	case "failure", "action_required", "cancelled", "timed_out", "stale":
-		<span style="color:var(--red)">✗</span>
+		<span class="pr-check-dot pr-check-dot-red" title={ c.Conclusion }></span>
+	case "neutral", "skipped":
+		<span class="pr-check-dot pr-check-dot-muted" title={ c.Conclusion }></span>
 	default:
-		<span style="color:var(--muted)">○</span>
+		<span class="pr-check-dot pr-check-dot-amber pr-check-dot-pulse" title={ c.Status }></span>
 	}
 }
 
@@ -208,11 +283,11 @@ templ ciStatusBadge(checks []domain.CheckRun) {
 		<!-- no badge -->
 	} else {
 		if anyCheckFailing(checks) {
-			<span class="pill pill-red">CI failing</span>
+			<span class="badge badge-red">CI Failing</span>
 		} else if allChecksPassing(checks) {
-			<span class="pill pill-green">CI passing</span>
+			<span class="badge badge-green">CI Passing</span>
 		} else {
-			<span class="pill pill-muted">CI pending</span>
+			<span class="badge badge-muted">CI Pending</span>
 		}
 	}
 }
@@ -220,8 +295,8 @@ templ ciStatusBadge(checks []domain.CheckRun) {
 // ErrorPage renders a full-page error with layout.
 templ ErrorPage(message string) {
 	@Layout("Error") {
-		<div style="max-width:600px;margin:60px auto;padding:0 24px">
-			<div style="background:var(--card);border:1px solid var(--red);border-radius:10px;padding:24px">
+		<div class="pr-detail" style="max-width:600px">
+			<div class="pr-card" style="border-color:var(--red)">
 				<h2 style="color:var(--red);font-size:16px;margin-bottom:8px">Something went wrong</h2>
 				<p style="color:var(--muted);font-size:13px;margin-bottom:16px">{ message }</p>
 				<a href="/" class="btn">← Back to inbox</a>
@@ -230,13 +305,6 @@ templ ErrorPage(message string) {
 	}
 }
 
-// anyCheckFailing returns true when at least one completed check has a
-// problematic conclusion. Only completed checks are considered so in-progress
-// runs don't trigger the "CI failing" badge.
-//
-// allChecksPassing uses a stricter rule: any conclusion other than "success"
-// (including in-progress/empty) counts as not passing, so the badge is only
-// shown when every check has explicitly succeeded.
 func anyCheckFailing(checks []domain.CheckRun) bool {
 	for _, c := range checks {
 		if c.Status != "completed" {
