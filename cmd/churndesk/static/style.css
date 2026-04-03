@@ -149,6 +149,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border-radius: 50%;
   background: var(--accent);
 }
+/* Hide dot when dismiss button is revealed to avoid overlap */
+.feed-item:hover.unseen::after,
+.feed-item:focus-within.unseen::after { display: none; }
 
 .feed-item-score {
   font-size: 12px;
@@ -194,12 +197,13 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   font-style: italic;
 }
 
-/* Dismiss button: hidden by default, shown on feed-item hover */
+/* Dismiss button: visually hidden by default, revealed on hover/focus so
+   keyboard and touch users can reach it via Tab without needing a mouse */
 .dismiss-btn {
   position: absolute;
   top: 10px;
   right: 10px;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 28px;
@@ -210,9 +214,18 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   color: var(--muted);
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: background 0.1s, color 0.1s, opacity 0.1s, visibility 0.1s;
 }
-.feed-item:hover .dismiss-btn { display: flex; }
+.feed-item:hover .dismiss-btn,
+.feed-item:focus-within .dismiss-btn,
+.dismiss-btn:focus {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
 .dismiss-btn:hover {
   background: var(--red-soft);
   color: var(--red);
